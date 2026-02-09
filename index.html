@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Permit Automation — Architecture Documents</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --card: #1a1d27;
+    --border: #2a2d3a;
+    --accent1: #6366f1;
+    --accent2: #22d3ee;
+    --accent3: #f59e0b;
+    --green: #10b981;
+    --text: #e2e8f0;
+    --muted: #94a3b8;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; background: var(--bg); color: var(--text); line-height: 1.7; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+  .container { max-width: 700px; padding: 48px 24px; }
+  h1 { font-size: 1.8rem; font-weight: 700; margin-bottom: 8px; }
+  .subtitle { color: var(--muted); font-size: .92rem; margin-bottom: 40px; }
+  .card { display: block; background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 24px 28px; margin-bottom: 16px; text-decoration: none; color: var(--text); transition: border-color .2s, transform .15s; position: relative; overflow: hidden; }
+  .card:hover { border-color: var(--accent2); transform: translateY(-2px); }
+  .card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; }
+  .card:first-of-type::before { background: var(--accent1); }
+  .card:last-of-type::before { background: var(--green); }
+  .card h2 { font-size: 1.1rem; margin-bottom: 4px; }
+  .card p { font-size: .85rem; color: var(--muted); margin: 0; }
+  .card .tag { display: inline-block; font-size: .65rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; padding: 3px 8px; border-radius: 4px; margin-bottom: 8px; }
+  .tag-analysis { background: rgba(99,102,241,.2); color: var(--accent1); }
+  .tag-blueprint { background: rgba(16,185,129,.2); color: var(--green); }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>Permit Automation Platform</h1>
+  <p class="subtitle">Architecture analysis and implementation blueprint for automating construction permit filing across hundreds of government websites.</p>
+
+  <a class="card" href="architecture-analysis.html">
+    <span class="tag tag-analysis">Document 1</span>
+    <h2>Architecture Analysis & Recommendation</h2>
+    <p>Three competing approaches compared in plain English. Deep dives, flow diagrams, strengths & loopholes, side-by-side scoring, and the final hybrid recommendation.</p>
+  </a>
+
+  <a class="card" href="recommended-approach-blueprint.html">
+    <span class="tag tag-blueprint">Document 2</span>
+    <h2>Implementation Blueprint</h2>
+    <p>The recommended approach in detail. Every state in the flow explained, the exact JSON schema the bot reads, exploration strategy, risks, objections, validation tests, kill criteria, and fallback plans.</p>
+  </a>
+</div>
+</body>
+</html>

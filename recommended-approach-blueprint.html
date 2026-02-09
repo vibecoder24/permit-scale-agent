@@ -1,0 +1,1142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Recommended Approach — Implementation Blueprint</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --card: #1a1d27;
+    --border: #2a2d3a;
+    --accent1: #6366f1;
+    --accent2: #22d3ee;
+    --accent3: #f59e0b;
+    --green: #10b981;
+    --red: #ef4444;
+    --orange: #f97316;
+    --text: #e2e8f0;
+    --muted: #94a3b8;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; background: var(--bg); color: var(--text); line-height: 1.7; }
+  .container { max-width: 1200px; margin: 0 auto; padding: 48px 24px; }
+
+  h1 { font-size: 2rem; font-weight: 700; margin-bottom: 6px; }
+  h2 { font-size: 1.4rem; font-weight: 600; margin-bottom: 20px; color: var(--accent2); }
+  h3 { font-size: 1.05rem; font-weight: 600; margin-bottom: 10px; }
+  .subtitle { color: var(--muted); font-size: .95rem; margin-bottom: 52px; max-width: 780px; }
+
+  .section { margin-bottom: 64px; }
+  .section-header { display: flex; align-items: center; gap: 12px; margin-bottom: 28px; }
+  .section-num { background: var(--accent1); color: #fff; font-size: .8rem; font-weight: 700; width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+
+  .info-box { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 24px; }
+  .info-box ul { padding-left: 18px; }
+  .info-box li { margin-bottom: 8px; font-size: .9rem; }
+
+  .callout { background: rgba(34,211,238,.06); border: 1px solid rgba(34,211,238,.2); border-radius: 10px; padding: 18px 20px; margin: 20px 0; font-size: .92rem; }
+  .callout strong { color: var(--accent2); }
+  .callout-warn { background: rgba(249,115,22,.06); border: 1px solid rgba(249,115,22,.25); }
+  .callout-warn strong { color: var(--orange); }
+  .callout-red { background: rgba(239,68,68,.06); border: 1px solid rgba(239,68,68,.25); }
+  .callout-red strong { color: var(--red); }
+  .callout-green { background: rgba(16,185,129,.06); border: 1px solid rgba(16,185,129,.25); }
+  .callout-green strong { color: var(--green); }
+
+  .divider { height: 1px; background: var(--border); margin: 52px 0; }
+
+  .tag { display: inline-block; font-size: .65rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; padding: 3px 8px; border-radius: 4px; }
+  .tag-opt1 { background: rgba(99,102,241,.2); color: var(--accent1); }
+  .tag-opt2 { background: rgba(245,158,11,.2); color: var(--accent3); }
+  .tag-opt3 { background: rgba(34,211,238,.2); color: var(--accent2); }
+
+  /* ─── Flow chart ─── */
+  .flow-phase { margin-bottom: 10px; }
+  .phase-header { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; padding: 14px 18px; border-radius: 10px; }
+  .phase-header h3 { margin-bottom: 0; font-size: 1rem; }
+  .phase-num { font-size: .75rem; font-weight: 700; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; color: #fff; }
+  .phase-setup .phase-header { background: rgba(99,102,241,.08); border: 1px solid rgba(99,102,241,.25); }
+  .phase-setup .phase-num { background: var(--accent1); }
+  .phase-setup .phase-header h3 { color: var(--accent1); }
+  .phase-permit .phase-header { background: rgba(16,185,129,.08); border: 1px solid rgba(16,185,129,.25); }
+  .phase-permit .phase-num { background: var(--green); }
+  .phase-permit .phase-header h3 { color: var(--green); }
+  .phase-ops .phase-header { background: rgba(249,115,22,.08); border: 1px solid rgba(249,115,22,.25); }
+  .phase-ops .phase-num { background: var(--orange); }
+  .phase-ops .phase-header h3 { color: var(--orange); }
+
+  .state-card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 0; margin-bottom: 6px; overflow: hidden; }
+  .state-top { display: grid; grid-template-columns: 60px 1fr; min-height: 0; }
+  .state-letter { display: flex; align-items: center; justify-content: center; font-size: 1.1rem; font-weight: 800; color: #fff; min-height: 60px; }
+  .state-main { padding: 16px 20px 16px 16px; }
+  .state-main h4 { font-size: .95rem; margin-bottom: 4px; }
+  .state-main .who { font-size: .75rem; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin-bottom: 8px; }
+  .state-main p { font-size: .88rem; color: var(--muted); margin-bottom: 0; }
+  .state-detail { border-top: 1px solid var(--border); padding: 14px 20px 14px 76px; }
+  .state-detail-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; }
+  .sd-item { font-size: .82rem; }
+  .sd-label { font-size: .65rem; text-transform: uppercase; letter-spacing: .06em; font-weight: 700; margin-bottom: 3px; }
+  .sd-label-in { color: var(--accent2); }
+  .sd-label-out { color: var(--green); }
+  .sd-label-fail { color: var(--red); }
+  .sd-label-time { color: var(--accent3); }
+  .sd-label-who { color: var(--accent1); }
+  .sd-label-source { color: var(--muted); }
+
+  .connector { display: flex; justify-content: center; padding: 0; }
+  .connector .arrow { width: 2px; height: 28px; background: var(--border); margin: 0 auto; position: relative; }
+  .connector .arrow::after { content: '▼'; position: absolute; bottom: -12px; left: -5px; font-size: .6rem; color: var(--border); }
+  .connector-branch { display: flex; align-items: center; gap: 8px; padding: 4px 0; justify-content: center; }
+  .connector-branch .label { font-size: .7rem; color: var(--muted); background: var(--card); padding: 2px 10px; border-radius: 4px; border: 1px solid var(--border); }
+
+  /* ─── Risk / objection cards ─── */
+  .risk-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 16px; margin-bottom: 20px; }
+  .risk-card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 20px; position: relative; overflow: hidden; }
+  .risk-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; }
+  .risk-card.risk-high::before { background: var(--red); }
+  .risk-card.risk-med::before { background: var(--orange); }
+  .risk-card.risk-low::before { background: var(--accent3); }
+  .risk-card h4 { font-size: .9rem; margin-bottom: 6px; }
+  .risk-card p { font-size: .85rem; color: var(--muted); margin-bottom: 0; }
+  .risk-card .severity { font-size: .65rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 8px; }
+  .risk-card.risk-high .severity { color: var(--red); }
+  .risk-card.risk-med .severity { color: var(--orange); }
+  .risk-card.risk-low .severity { color: var(--accent3); }
+  .risk-card .mitigation { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); font-size: .82rem; }
+  .risk-card .mitigation strong { color: var(--green); }
+
+  /* ─── Table ─── */
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: .85rem; margin-bottom: 20px; }
+  th, td { padding: 10px 14px; text-align: left; border-bottom: 1px solid var(--border); }
+  th { background: var(--card); color: var(--accent2); font-weight: 600; font-size: .75rem; text-transform: uppercase; letter-spacing: .05em; }
+  tr:hover td { background: rgba(99,102,241,.04); }
+
+  /* ─── Validation tests ─── */
+  .test-card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 20px; margin-bottom: 12px; }
+  .test-card h4 { font-size: .92rem; margin-bottom: 4px; }
+  .test-card .test-meta { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 10px; }
+  .test-card .test-meta span { font-size: .75rem; color: var(--muted); }
+  .test-card .test-meta strong { color: var(--accent2); }
+  .test-card p { font-size: .85rem; color: var(--muted); }
+  .test-card .pass-criteria { margin-top: 10px; padding: 10px 14px; background: rgba(16,185,129,.06); border-radius: 6px; font-size: .82rem; }
+  .test-card .pass-criteria strong { color: var(--green); }
+  .test-card .fail-action { margin-top: 8px; padding: 10px 14px; background: rgba(239,68,68,.06); border-radius: 6px; font-size: .82rem; }
+  .test-card .fail-action strong { color: var(--red); }
+
+  /* ─── Kill criteria ─── */
+  .kill-card { background: rgba(239,68,68,.04); border: 1px solid rgba(239,68,68,.2); border-radius: 10px; padding: 20px; margin-bottom: 12px; }
+  .kill-card h4 { font-size: .9rem; color: var(--red); margin-bottom: 6px; }
+  .kill-card p { font-size: .85rem; color: var(--muted); margin-bottom: 0; }
+  .kill-card .then { margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(239,68,68,.15); font-size: .82rem; }
+  .kill-card .then strong { color: var(--orange); }
+
+  /* ─── Fallback ─── */
+  .fallback-card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 22px; margin-bottom: 14px; border-left: 4px solid var(--accent3); }
+  .fallback-card h4 { font-size: .92rem; color: var(--accent3); margin-bottom: 6px; }
+  .fallback-card p { font-size: .85rem; color: var(--muted); margin-bottom: 0; }
+  .fallback-card .trigger { margin-top: 10px; padding: 10px 14px; background: rgba(245,158,11,.06); border-radius: 6px; font-size: .82rem; }
+  .fallback-card .trigger strong { color: var(--orange); }
+  .fallback-card .what-changes { margin-top: 8px; font-size: .82rem; }
+  .fallback-card .what-changes strong { color: var(--accent2); }
+
+  .timeline-bar { display: flex; align-items: stretch; border-radius: 8px; overflow: hidden; height: 36px; margin: 20px 0; }
+  .timeline-seg { display: flex; align-items: center; justify-content: center; font-size: .7rem; font-weight: 700; color: #fff; letter-spacing: .02em; }
+</style>
+</head>
+<body>
+<div class="container">
+
+<!-- ═══════════════════ HEADER ═══════════════════ -->
+<h1>Recommended Approach — Blueprint</h1>
+<p class="subtitle">The hybrid approach: Option 3's engine + Option 1's data model + Option 2's UX. This page breaks down every state in the flow, lists what can go wrong, what we're assuming, what to test first, and when to pull the plug.</p>
+
+<!-- ═══════════════════ 1. ONE-LINE SUMMARY ═══════════════════ -->
+<div class="section">
+  <div class="section-header"><div class="section-num">1</div><h2>The Approach in One Paragraph</h2></div>
+  <div class="info-box">
+    <p style="font-size:.95rem;margin-bottom:14px;"><strong>AI explores each city's website once</strong> (10+ runs with varied inputs), producing a master map of every page, field, popup, and branch. A human reviews the map in ~15 minutes using a visual tool. From then on, a simple Playwright bot follows that map to fill every permit — <strong>zero AI at fill time</strong>. Contractor data is organized using a 3-layer schema with field classification. A gap-check ensures we have everything before the contractor leaves. The bot fills forms in the background, verifies per-page, and texts the contractor when done. Nightly checks detect website changes and auto-rebuild maps.</p>
+    <div class="callout" style="margin:0;"><strong>Core principle:</strong> AI learns once. Code executes forever. The map is the product.</div>
+  </div>
+</div>
+
+<!-- ═══════════════════ 2. DETAILED FLOW CHART ═══════════════════ -->
+<div class="section">
+  <div class="section-header"><div class="section-num">2</div><h2>Detailed Flow — Every State Explained</h2></div>
+  <p style="color:var(--muted);margin-bottom:24px;font-size:.88rem;">The system has 3 phases and 10 states. Each state lists who does it, what goes in, what comes out, what happens if it fails, and how long it takes.</p>
+
+  <!-- ──── PHASE 1: SETUP ──── -->
+  <div class="flow-phase phase-setup">
+    <div class="phase-header">
+      <div class="phase-num">I</div>
+      <h3>Setup Phase — Done once per city, before serving any real permits</h3>
+    </div>
+
+    <!-- STATE A -->
+    <div class="state-card">
+      <div class="state-top">
+        <div class="state-letter" style="background:var(--accent1);">A</div>
+        <div class="state-main">
+          <h4>Vendor Identification & Template Selection</h4>
+          <div class="who">Who: Ops person (2 min) + automated check</div>
+          <p>Before any AI runs, identify what software platform the city uses. Check the website's footer, login page, and URL patterns for vendor signatures (Accela, Tyler Technologies, CityView, OpenGov, etc.). If we've already mapped another city on the same vendor, pull that map as a starting template.</p>
+        </div>
+      </div>
+      <div class="state-detail">
+        <div class="state-detail-grid">
+          <div class="sd-item"><div class="sd-label sd-label-in">Input</div>City website URL</div>
+          <div class="sd-item"><div class="sd-label sd-label-out">Output</div>Vendor tag + base template (or "new vendor" flag)</div>
+          <div class="sd-item"><div class="sd-label sd-label-fail">If it fails</div>No template found → proceed to State B with blank slate (full exploration)</div>
+          <div class="sd-item"><div class="sd-label sd-label-time">Duration</div>2 minutes (manual) + instant (DB lookup)</div>
+          <div class="sd-item"><div class="sd-label sd-label-source">Comes from</div><span class="tag tag-opt2">Opt 2</span> vendor clustering idea</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="connector"><div class="arrow"></div></div>
+
+    <!-- STATE B -->
+    <div class="state-card">
+      <div class="state-top">
+        <div class="state-letter" style="background:var(--accent1);">B</div>
+        <div class="state-main">
+          <h4>AI Exploration — Map the Website</h4>
+          <div class="who">Who: AI Explorer Bot (automated, no human)</div>
+          <p>The AI bot is given a Playwright browser and a clear goal: <strong>"Complete a permit application for [permit type] on this website. Record every page you visit, every field you see, every button you click, and every popup that opens. Do NOT submit — stop at the final review page."</strong> It's not trying to build a sitemap of the whole website. It's not trying to fill a real permit. It's trying to walk through one specific application flow end-to-end — like a new employee doing a dry run — and write down everything it encounters along the way.</p>
+
+          <p style="margin-top:12px;">The key is that we run this <strong>multiple times with deliberately varied inputs</strong> to discover how pages depend on each other. This is not random — it's systematic:</p>
+
+          <div style="margin-top:12px;padding:14px 16px;background:rgba(99,102,241,.06);border-radius:8px;font-size:.85rem;">
+            <strong style="color:var(--accent1);">How we handle page dependencies (Page 3 depends on Page 2):</strong>
+            <p style="margin:8px 0 6px;">The exploration is organized as a <strong>decision tree traversal</strong>. Each page has choices (dropdowns, radio buttons, checkboxes) that change what appears on the next page. We need to cover every branch of this tree.</p>
+            <ol style="padding-left:18px;margin-top:8px;">
+              <li style="margin-bottom:8px;"><strong>Run 1 — the "happy path":</strong> Pick the most common option at every choice point. Reroof, residential, single-family. Walk straight through. This gives us the baseline page flow: Page 1 → 2 → 3a → 4 → 5 → review.</li>
+              <li style="margin-bottom:8px;"><strong>Run 2 — change one choice on Page 1, keep everything else the same.</strong> Switch permit type from "reroof" to "HVAC." Pages 1-2 might be identical, but Page 3 shows completely different fields (BTU rating instead of roof slope). Now we know: "when Page 1 permit_type = HVAC, Page 3 becomes 3b." We've mapped one branch.</li>
+              <li style="margin-bottom:8px;"><strong>Run 3 — change a different choice on Page 1.</strong> Switch property type from "residential" to "commercial." Maybe Page 2 now asks for a business license number. Maybe Page 4 has extra fire safety fields. Each run isolates one variable to see what it affects downstream.</li>
+              <li style="margin-bottom:8px;"><strong>Run 4+ — go deeper.</strong> On Page 2, there might be a dropdown ("Are you the property owner?") that reveals an entirely different Page 3 variant. Run 4 says "Yes" → see what happens. Run 5 says "No" → see what happens. The AI keeps a running list of "choices I haven't tried yet" and works through them.</li>
+              <li style="margin-bottom:8px;"><strong>Run 7+ — nested and edge paths.</strong> Click "Add Another Contractor" on Page 4 — does a modal pop up? What fields does it have? Try "Add" with 0, 1, and 2 contractors. Try the "Upload Documents" button. Try leaving required fields blank to see validation messages (which reveal which fields are actually required).</li>
+            </ol>
+            <p style="margin-top:8px;">The result: after 10-15 runs, we've seen every variant of every page, and — critically — we know <strong>which choice on which page caused each variant</strong>. "Selecting 'commercial' on Page 1 causes Page 3 to show fields X, Y, Z instead of A, B, C." This is the dependency map that makes the master map work.</p>
+          </div>
+
+          <!-- ── CLEAR GOAL STATEMENT ── -->
+          <div style="margin-top:16px;padding:16px 18px;background:rgba(16,185,129,.06);border:1px solid rgba(16,185,129,.2);border-radius:8px;">
+            <h4 style="color:var(--green);font-size:.88rem;margin-bottom:8px;">The Goal — Stated Clearly</h4>
+            <p style="font-size:.88rem;margin-bottom:10px;">The AI's job is to produce a <strong>JSON file</strong> that answers one question:</p>
+            <p style="font-size:.95rem;font-weight:600;color:var(--accent2);margin-bottom:10px;padding-left:14px;border-left:3px solid var(--accent2);">"If a contractor wants a reroof permit in Austin, TX — what exact sequence of pages, fields, clicks, and waits does a bot need to follow to fill out the application on the city's website?"</p>
+            <p style="font-size:.88rem;margin-bottom:10px;">And the same for every other permit type the city offers (HVAC, water heater, etc.).</p>
+            <p style="font-size:.88rem;margin-bottom:0;">The JSON file is the <strong>only deliverable</strong>. It's consumed directly by a Playwright bot that reads it and executes it line by line. The bot has no intelligence — it can only do exactly what the JSON says. So the JSON must be complete: every page URL, every field selector, every dropdown option, every conditional branch, every "wait for this element before proceeding" instruction, every popup trigger. If it's not in the JSON, the bot can't do it.</p>
+          </div>
+
+          <!-- ── EXACT OUTPUT SCHEMA ── -->
+          <details style="margin-top:16px;border:1px solid rgba(34,211,238,.3);border-radius:10px;overflow:hidden;" open>
+            <summary style="background:rgba(34,211,238,.1);padding:10px 16px;display:flex;align-items:center;gap:8px;cursor:pointer;list-style:none;">
+              <span style="color:var(--accent2);font-size:.9rem;">&#9660;</span>
+              <strong style="color:var(--accent2);font-size:.88rem;">Exact Output — The JSON Schema the Bot Will Read</strong>
+            </summary>
+            <div style="padding:18px;font-size:.82rem;background:rgba(0,0,0,.2);">
+              <p style="color:var(--muted);margin-bottom:12px;">This is the actual structure. The bot parses this file and follows it. Every field shown below is required.</p>
+<pre style="white-space:pre-wrap;font-family:'SF Mono',Consolas,monospace;line-height:1.65;color:var(--text);margin:0;font-size:.78rem;">
+{
+  "<span style="color:var(--accent2);">city</span>": "Austin, TX",
+  "<span style="color:var(--accent2);">portal_url</span>": "https://abc.permits.com/portal",
+  "<span style="color:var(--accent2);">login</span>": {
+    "<span style="color:var(--accent3);">url</span>": "/portal/login",
+    "<span style="color:var(--accent3);">username_selector</span>": "#username",
+    "<span style="color:var(--accent3);">password_selector</span>": "#password",
+    "<span style="color:var(--accent3);">submit_selector</span>": "#btn-login",
+    "<span style="color:var(--accent3);">wait_after</span>": { "type": "url_contains", "value": "/dashboard" }
+  },
+  "<span style="color:var(--accent2);">start_application</span>": {
+    "<span style="color:var(--accent3);">url</span>": "/portal/new-application",
+    "<span style="color:var(--accent3);">click</span>": "#btn-new-permit",
+    "<span style="color:var(--accent3);">wait_after</span>": { "type": "element_visible", "selector": "#permit-type-dropdown" }
+  },
+  "<span style="color:var(--accent2);">pages</span>": [
+    {
+      "<span style="color:var(--green);">page_id</span>": "application_type",
+      "<span style="color:var(--green);">page_title</span>": "Application Type",
+      "<span style="color:var(--green);">url_pattern</span>": "/portal/apply/step1",
+      "<span style="color:var(--green);">wait_for</span>": { "type": "element_visible", "selector": "#permit-type" },
+      "<span style="color:var(--green);">fields</span>": [
+        {
+          "<span style="color:var(--accent3);">field_id</span>": "permit_type",
+          "<span style="color:var(--accent3);">label</span>": "Permit Type",
+          "<span style="color:var(--accent3);">type</span>": "dropdown",
+          "<span style="color:var(--accent3);">selector</span>": "#permit-type",
+          "<span style="color:var(--accent3);">backup_selector</span>": "select[name='permitType']",
+          "<span style="color:var(--accent3);">required</span>": true,
+          "<span style="color:var(--accent3);">options</span>": ["Reroof", "HVAC", "Water Heater", "Electrical"],
+          "<span style="color:var(--accent3);">maps_to</span>": "permit_type"   <span style="color:var(--muted);">// ← our data model field name</span>
+        },
+        {
+          "<span style="color:var(--accent3);">field_id</span>": "property_type",
+          "<span style="color:var(--accent3);">label</span>": "Property Type",
+          "<span style="color:var(--accent3);">type</span>": "radio",
+          "<span style="color:var(--accent3);">selector</span>": "input[name='propType']",
+          "<span style="color:var(--accent3);">required</span>": true,
+          "<span style="color:var(--accent3);">options</span>": ["Residential", "Commercial"],
+          "<span style="color:var(--accent3);">maps_to</span>": "property_type"
+        },
+        {
+          "<span style="color:var(--accent3);">field_id</span>": "address",
+          "<span style="color:var(--accent3);">label</span>": "Project Address",
+          "<span style="color:var(--accent3);">type</span>": "text",
+          "<span style="color:var(--accent3);">selector</span>": "#project-address",
+          "<span style="color:var(--accent3);">backup_selector</span>": "input[name='address']",
+          "<span style="color:var(--accent3);">required</span>": true,
+          "<span style="color:var(--accent3);">format</span>": null,
+          "<span style="color:var(--accent3);">maps_to</span>": "project_address"
+        }
+      ],
+      "<span style="color:var(--green);">next</span>": {
+        "<span style="color:var(--accent3);">action</span>": "click",
+        "<span style="color:var(--accent3);">selector</span>": "#btn-next",
+        "<span style="color:var(--accent3);">wait_after</span>": { "type": "url_contains", "value": "/step2" }
+      }
+    },
+    {
+      "<span style="color:var(--green);">page_id</span>": "property_details",
+      "<span style="color:var(--green);">page_title</span>": "Property Details",
+      "<span style="color:var(--green);">url_pattern</span>": "/portal/apply/step2",
+      "<span style="color:var(--green);">wait_for</span>": { "type": "element_visible", "selector": "#owner-name" },
+      "<span style="color:var(--green);">fields</span>": [
+        {
+          "field_id": "owner_name",
+          "label": "Property Owner Name",
+          "type": "text",
+          "selector": "#owner-name",
+          "required": true,
+          "maps_to": "owner_name",
+          "<span style="color:var(--red);">show_condition</span>": null         <span style="color:var(--muted);">// always shown</span>
+        },
+        {
+          "field_id": "business_license",
+          "label": "Business License #",
+          "type": "text",
+          "selector": "#biz-license",
+          "required": true,
+          "maps_to": "business_license",
+          "<span style="color:var(--red);">show_condition</span>": {            <span style="color:var(--muted);">// only shown when...</span>
+            "<span style="color:var(--red);">depends_on</span>": "property_type",   <span style="color:var(--muted);">// ...this earlier field...</span>
+            "<span style="color:var(--red);">equals</span>": "Commercial"            <span style="color:var(--muted);">// ...has this value</span>
+          }
+        }
+      ],
+      "<span style="color:var(--green);">next</span>": {
+        "<span style="color:var(--red);">branches</span>": [                      <span style="color:var(--muted);">// page 3 depends on page 1 choice</span>
+          {
+            "condition": { "field": "permit_type", "equals": "Reroof" },
+            "go_to": "roofing_details"
+          },
+          {
+            "condition": { "field": "permit_type", "equals": "HVAC" },
+            "go_to": "hvac_details"
+          },
+          {
+            "condition": { "field": "permit_type", "equals": "Water Heater" },
+            "go_to": "plumbing_details"
+          }
+        ],
+        "action": "click",
+        "selector": "#btn-next",
+        "wait_after": { "type": "url_change" }
+      }
+    },
+    {
+      "<span style="color:var(--green);">page_id</span>": "roofing_details",
+      "<span style="color:var(--green);">page_title</span>": "Roofing Details",
+      "<span style="color:var(--green);">only_when</span>": { "field": "permit_type", "equals": "Reroof" },
+      "url_pattern": "/portal/apply/step3-roof",
+      "wait_for": { "type": "element_visible", "selector": "#roof-material" },
+      "fields": [
+        {
+          "field_id": "roof_material",
+          "label": "Roofing Material",
+          "type": "dropdown",
+          "selector": "#roof-material",
+          "options": ["Asphalt Shingle", "Tile", "Metal", "Flat/TPO"],
+          "required": true,
+          "maps_to": "roof_material"
+        },
+        {
+          "field_id": "roof_sqft",
+          "label": "Roof Area (sq ft)",
+          "type": "text",
+          "selector": "#roof-sqft",
+          "required": true,
+          "<span style="color:var(--accent3);">format</span>": "integer_no_commas",  <span style="color:var(--muted);">// bot strips commas, rounds</span>
+          "maps_to": "square_footage"
+        }
+      ],
+      "<span style="color:var(--green);">nested_forms</span>": [
+        {
+          "<span style="color:var(--orange);">trigger_label</span>": "Add Contractor",
+          "<span style="color:var(--orange);">trigger_selector</span>": "#btn-add-contractor",
+          "<span style="color:var(--orange);">wait_for_modal</span>": { "type": "element_visible", "selector": ".modal-contractor" },
+          "<span style="color:var(--orange);">fields</span>": [
+            { "field_id": "c_name", "label": "Contractor Name", "type": "text",
+              "selector": ".modal-contractor #c-name", "maps_to": "contractor_name" },
+            { "field_id": "c_license", "label": "License #", "type": "text",
+              "selector": ".modal-contractor #c-license", "maps_to": "contractor_license" }
+          ],
+          "<span style="color:var(--orange);">save_selector</span>": ".modal-contractor #btn-save",
+          "<span style="color:var(--orange);">wait_after_save</span>": { "type": "element_hidden", "selector": ".modal-contractor" },
+          "<span style="color:var(--orange);">repeatable</span>": true  <span style="color:var(--muted);">// can add multiple contractors</span>
+        }
+      ],
+      "next": {
+        "action": "click",
+        "selector": "#btn-next",
+        "wait_after": { "type": "url_contains", "value": "/step4" }
+      }
+    }
+    <span style="color:var(--muted);">// ... more pages follow the same structure</span>
+  ]
+}
+</pre>
+            </div>
+          </details>
+
+          <!-- ── KEY THINGS ABOUT THE SCHEMA ── -->
+          <div style="margin-top:14px;padding:14px 16px;background:rgba(245,158,11,.06);border:1px solid rgba(245,158,11,.2);border-radius:8px;font-size:.84rem;">
+            <h4 style="color:var(--accent3);font-size:.84rem;margin-bottom:8px;">What makes this schema work for the bot:</h4>
+            <ul style="padding-left:16px;color:var(--muted);">
+              <li style="margin-bottom:6px;"><strong style="color:var(--text);">Every field has <code>maps_to</code></strong> — this connects the website's field to our data model. The bot looks up <code>maps_to: "square_footage"</code> in the contractor's data and types that value into selector <code>#roof-sqft</code>.</li>
+              <li style="margin-bottom:6px;"><strong style="color:var(--text);">Every conditional has <code>show_condition</code> or <code>only_when</code></strong> — the bot knows to skip the "Business License" field unless <code>property_type = Commercial</code>. It knows the "Roofing Details" page only exists when <code>permit_type = Reroof</code>.</li>
+              <li style="margin-bottom:6px;"><strong style="color:var(--text);">Every transition has <code>wait_after</code></strong> — the bot doesn't blindly click Next and hope. It clicks Next, then waits until the URL changes or a specific element appears. No <code>sleep(3000)</code> guessing.</li>
+              <li style="margin-bottom:6px;"><strong style="color:var(--text);">Nested forms are self-contained blocks</strong> — the trigger, the modal selector, the fields inside, the save button, the "wait for modal to close" signal. The bot can execute the whole popup as a sub-routine.</li>
+              <li style="margin-bottom:0;"><strong style="color:var(--text);">Branching uses <code>next.branches[]</code></strong> — after filling a page, the bot checks which branch condition matches (based on values it already filled on earlier pages) and jumps to the right <code>page_id</code>.</li>
+            </ul>
+          </div>
+
+          <!-- ── SAMPLE PROMPT (collapsed, refined) ── -->
+          <details style="margin-top:16px;border:1px solid rgba(245,158,11,.3);border-radius:10px;overflow:hidden;">
+            <summary style="background:rgba(245,158,11,.1);padding:10px 16px;display:flex;align-items:center;gap:8px;cursor:pointer;list-style:none;">
+              <span style="color:var(--accent3);font-size:.9rem;">&#9654;</span>
+              <strong style="color:var(--accent3);font-size:.85rem;">Sample Exploration Prompt</strong>
+              <span style="font-size:.7rem;color:var(--muted);">(click to expand — adapt per city)</span>
+            </summary>
+            <div style="padding:16px;font-size:.82rem;background:rgba(0,0,0,.2);">
+<pre style="white-space:pre-wrap;font-family:'SF Mono',Consolas,monospace;line-height:1.7;color:var(--text);margin:0;font-size:.78rem;">
+<strong style="color:var(--accent3);">GOAL:</strong>
+Produce a JSON file (schema shown below) that a Playwright bot will
+read and execute to fill permit applications on a government website.
+The bot has zero intelligence — it can ONLY follow the JSON literally.
+If a page, field, button, wait condition, or branch is missing from
+the JSON, the bot will fail. Your job is to make the JSON complete.
+
+<strong style="color:var(--accent3);">THE OUTPUT IS A SINGLE JSON FILE that contains:</strong>
+- Login sequence (URL, selectors, wait condition)
+- How to start a new application (URL, click, wait)
+- Every page in order, with:
+    → page_id, url_pattern, wait_for condition
+    → every field: label, CSS selector, backup_selector, type,
+      required (true/false), format transform, maps_to (our field name),
+      show_condition (null if always shown, or {depends_on, equals})
+    → nested_forms: trigger button, modal selector, modal fields,
+      save button, wait_after_save, repeatable (true/false)
+    → next: click selector, wait_after, and branches[] if the next
+      page depends on an earlier choice
+
+<strong style="color:var(--accent3);">TARGET WEBSITE:</strong>
+URL: [https://permits.cityofaustin.io]
+Login: [test_user] / [test_pass]
+
+<strong style="color:var(--accent3);">PERMIT TYPES TO MAP:</strong> Reroof, HVAC, Water Heater
+<strong style="color:var(--accent3);">PROPERTY TYPES:</strong> Residential, Commercial
+
+<strong style="color:var(--accent3);">HOW TO EXPLORE:</strong>
+Do 10-15 dry runs. DO NOT submit any application. Stop at the
+review/summary page.
+
+Run 1: Reroof + Residential (baseline). Record every page + field.
+Run 2: HVAC + Residential. Note what changed from Run 1.
+Run 3: Water Heater + Residential. Note what changed.
+Run 4: Reroof + Commercial. Note what changed.
+Run 5: HVAC + Commercial.
+Runs 6-8: For any dropdown or radio button you haven't tried all
+  options on — go back and try the other options. Record which
+  downstream pages/fields changed.
+Runs 9-10: Click every "Add Another" button. Record the popup fields.
+  Try adding 0, 1, and 2 entries.
+Runs 11+: Leave required fields blank → note validation errors.
+  This confirms which fields are truly required.
+
+<strong style="color:var(--accent3);">FOR EACH FIELD, YOU MUST CAPTURE:</strong>
+1. The exact CSS selector (inspect element → copy selector)
+2. A backup selector using a different attribute (name=, aria-label=, etc.)
+3. If dropdown: every option value (not just the visible text — the
+   underlying &lt;option value="..."&gt;)
+4. If the field only appears sometimes: the exact condition
+   (which earlier field + which value causes it to appear)
+5. If the field needs a format: what format (uppercase, $0.00,
+   MM/DD/YYYY, integer without commas, etc.)
+
+<strong style="color:var(--accent3);">FOR EACH PAGE TRANSITION:</strong>
+1. What button/link do you click to go to the next page?
+2. How do you know the next page loaded? (URL changed? A specific
+   element became visible? A loading spinner disappeared?)
+3. If the next page is different depending on an earlier choice,
+   list every branch: {condition: {field, equals}, go_to: page_id}
+
+<strong style="color:var(--accent3);">DELIVER:</strong>
+One JSON file matching the schema above. Include ALL permit types
+and ALL branches in a single file. Use page_id references for
+branching (not page numbers — pages may be skipped depending on path).
+Flag any field or branch you're &lt;80% confident about with:
+  "confidence": 0.6, "note": "only appeared in 2 of 10 runs"
+</pre>
+            </div>
+          </details>
+
+          <p style="margin-top:14px;font-size:.84rem;color:var(--muted);">Adapt per city — replace the URL, login, permit types, and test addresses. For cities on a known vendor platform, add: <em>"Here's a JSON map from another [Accela/Tyler] city. Start by checking if the same pages and fields exist. Only explore and add what's different."</em></p>
+
+          <p style="margin-top:12px;">If starting from a vendor template, the bot starts by following the template path and only explores where the real site <em>differs</em> — saving 60-80% of runs.</p>
+        </div>
+      </div>
+      <div class="state-detail">
+        <div class="state-detail-grid">
+          <div class="sd-item"><div class="sd-label sd-label-in">Input</div>Website URL + login credentials + a run plan (which input combinations to try) + vendor template (if available)</div>
+          <div class="sd-item"><div class="sd-label sd-label-out">Output</div>10-15 session recordings + synthesized master map (JSON decision tree)</div>
+          <div class="sd-item"><div class="sd-label sd-label-fail">If it fails</div>Bot can't log in → needs manual credential setup. Bot gets CAPTCHA'd → flag for CAPTCHA handling. Bot stuck in loop → cap at 15 min per run, flag for ops review. Bot misses a branch → the "choices not yet tried" list catches it and schedules another run.</div>
+          <div class="sd-item"><div class="sd-label sd-label-time">Duration</div>~20-40 min total (10-15 runs × 2-3 min each). With template: ~5-10 min.</div>
+          <div class="sd-item"><div class="sd-label sd-label-source">Comes from</div><span class="tag tag-opt3">Opt 3</span> multi-run exploration</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="connector"><div class="arrow"></div></div>
+
+    <!-- STATE C -->
+    <div class="state-card">
+      <div class="state-top">
+        <div class="state-letter" style="background:var(--accent1);">C</div>
+        <div class="state-main">
+          <h4>AI Synthesis — Build the Master Map</h4>
+          <div class="who">Who: AI (one-time processing, no human)</div>
+          <p>The AI's goal here is specific: <strong>"Take the 10-15 session recordings from State B and produce one JSON file in the exact schema shown above."</strong> The recordings are the raw material. The JSON is the deliverable. The AI's job is to merge, deduplicate, and resolve conflicts across all recordings into a single, complete, bot-executable file.</p>
+
+          <p style="margin-top:12px;">The synthesis works by <strong>comparing what changed between runs</strong>. Runs 1 and 2 both visited Page 1 → Page 2 → Page 3 — but Run 2 saw different fields on Page 3. The AI asks: "what input was different in Run 2?" Answer: permit_type was 'HVAC' instead of 'Reroof.' So the JSON gets:</p>
+
+          <div style="margin-top:12px;padding:14px 16px;background:rgba(99,102,241,.06);border-radius:8px;font-size:.85rem;">
+            <strong style="color:var(--accent1);">How the AI resolves dependencies:</strong>
+            <ol style="padding-left:18px;margin-top:8px;color:var(--muted);">
+              <li style="margin-bottom:6px;"><strong style="color:var(--text);">Align all recordings by page.</strong> Which runs visited which pages? Group them.</li>
+              <li style="margin-bottom:6px;"><strong style="color:var(--text);">Find pages that only some runs visited.</strong> "Page 3a appeared in Runs 1, 4, 6 (all Reroof). Page 3b appeared in Runs 2, 5 (all HVAC)." → That's a branch. The condition is <code>permit_type</code>.</li>
+              <li style="margin-bottom:6px;"><strong style="color:var(--text);">Find fields that only sometimes appeared on a shared page.</strong> "On Page 2, field 'business_license' appeared in Runs 4, 5 (both Commercial). Never in Runs 1-3 (all Residential)." → That's a <code>show_condition: {depends_on: "property_type", equals: "Commercial"}</code>.</li>
+              <li style="margin-bottom:6px;"><strong style="color:var(--text);">Merge field selectors.</strong> If Run 1 captured selector <code>#sqft</code> and Run 6 captured <code>input[name='sqft']</code> for the same field, use the first as <code>selector</code> and the second as <code>backup_selector</code>.</li>
+              <li style="margin-bottom:0;"><strong style="color:var(--text);">Flag low-confidence items.</strong> "Field 'fire_sprinkler' appeared in only 1 of 10 runs. Condition unclear." → Add <code>"confidence": 0.4, "note": "appeared only in Run 5 (Commercial + HVAC). Might depend on building size."</code> The human reviewer resolves these in State D.</li>
+            </ol>
+          </div>
+
+          <p style="margin-top:12px;font-size:.85rem;color:var(--muted);">The output is the same JSON schema as shown in State B above — <code>pages[]</code> with <code>fields[]</code>, <code>next.branches[]</code>, <code>nested_forms[]</code>, <code>show_condition</code>, <code>wait_for</code>, and <code>maps_to</code> for every field. The bot reads this file directly. Nothing else is needed between this file and form execution.</p>
+        </div>
+      </div>
+      <div class="state-detail">
+        <div class="state-detail-grid">
+          <div class="sd-item"><div class="sd-label sd-label-in">Input</div>10-15 session recordings (aligned by page sequence, with choice-outcome pairs)</div>
+          <div class="sd-item"><div class="sd-label sd-label-out">Output</div>Draft master map (JSON decision tree) — a bot instruction manual with confidence scores per field and per branch</div>
+          <div class="sd-item"><div class="sd-label sd-label-fail">If it fails</div>AI produces contradictory branches → flag with low confidence → human resolves during review. AI can't determine the branching condition → marks as "unknown trigger, needs human" → reviewer checks. AI times out on large form → break into sections, synthesize per-section, stitch together.</div>
+          <div class="sd-item"><div class="sd-label sd-label-time">Duration</div>~2-5 min of AI processing</div>
+          <div class="sd-item"><div class="sd-label sd-label-source">Comes from</div><span class="tag tag-opt3">Opt 3</span> synthesis step</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="connector"><div class="arrow"></div></div>
+
+    <!-- STATE D -->
+    <div class="state-card">
+      <div class="state-top">
+        <div class="state-letter" style="background:var(--accent1);">D</div>
+        <div class="state-main">
+          <h4>Human Review + Field Classification</h4>
+          <div class="who">Who: Ops person (~15 min) using visual review tool</div>
+          <p>Ops person opens the map in a visual flowchart UI. Each page shows as a card with fields listed. Arrows show page transitions. Diamonds show conditional branches. Expandable sub-cards show nested forms. The reviewer: (1) checks that the page flow matches reality, (2) fixes any misidentified fields, (3) adds field intent classifications from Opt 1's model — tagging each field as <strong>auto-fillable</strong> (we always know the answer), <strong>safe default</strong> (N/A or 0 is fine), <strong>derivable</strong> (auto-lookup from address/parcel), <strong>must-ask</strong> (contractor must answer), or <strong>obsolete</strong> (legacy field, skip). (4) Approves the map.</p>
+        </div>
+      </div>
+      <div class="state-detail">
+        <div class="state-detail-grid">
+          <div class="sd-item"><div class="sd-label sd-label-in">Input</div>Draft map + visual review tool + field classification rules</div>
+          <div class="sd-item"><div class="sd-label sd-label-out">Output</div>Approved master map with field intents, ready for production</div>
+          <div class="sd-item"><div class="sd-label sd-label-fail">If it fails</div>Reviewer finds major errors → send back to re-exploration (State B) with notes on what was wrong. Reviewer unsure about a field → tag as "must-ask" (safest default).</div>
+          <div class="sd-item"><div class="sd-label sd-label-time">Duration</div>~15 min for familiar vendor templates. ~30-45 min for novel platforms.</div>
+          <div class="sd-item"><div class="sd-label sd-label-source">Comes from</div><span class="tag tag-opt3">Opt 3</span> visual tool + <span class="tag tag-opt1">Opt 1</span> field classification</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="connector"><div class="arrow"></div></div>
+
+    <!-- STATE E -->
+    <div class="state-card">
+      <div class="state-top">
+        <div class="state-letter" style="background:var(--accent1);">E</div>
+        <div class="state-main">
+          <h4>Validation — Test Fills Until 5 Clean Runs</h4>
+          <div class="who">Who: Bot (automated) + Ops person (monitors)</div>
+          <p>Run 5 test permits using synthetic data (different permit types, property types, and edge cases). The bot follows the approved map. After each fill, the verifier checks every field. If any test fails: identify the map error, fix it, and restart the count. The city is only marked "production-ready" after 5 consecutive clean fills with zero field mismatches.</p>
+        </div>
+      </div>
+      <div class="state-detail">
+        <div class="state-detail-grid">
+          <div class="sd-item"><div class="sd-label sd-label-in">Input</div>Approved map + 5 synthetic permit data sets</div>
+          <div class="sd-item"><div class="sd-label sd-label-out">Output</div>Validated, production-locked master map</div>
+          <div class="sd-item"><div class="sd-label sd-label-fail">If it fails</div>Failing on same field repeatedly → map error, fix and re-test. Failing on different fields each time → map is fundamentally wrong, re-explore (State B).</div>
+          <div class="sd-item"><div class="sd-label sd-label-time">Duration</div>~30-60 min (5 fills × 5-10 min each, plus fixing time)</div>
+          <div class="sd-item"><div class="sd-label sd-label-source">Comes from</div><span class="tag tag-opt1">Opt 1</span> validation concept</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="callout" style="margin:24px 0;">
+    <strong>After States A–E:</strong> The city is live. Total human time: ~20-50 minutes. Total elapsed time: ~1-2 hours. The master map is locked and ready to serve real permits.
+  </div>
+
+  <!-- ──── PHASE 2: EVERY PERMIT ──── -->
+  <div class="flow-phase phase-permit">
+    <div class="phase-header">
+      <div class="phase-num">II</div>
+      <h3>Permit Phase — What happens every time a contractor files</h3>
+    </div>
+
+    <!-- STATE F -->
+    <div class="state-card">
+      <div class="state-top">
+        <div class="state-letter" style="background:var(--green);">F</div>
+        <div class="state-main">
+          <h4>Contractor Data Collection (Layered Questions)</h4>
+          <div class="who">Who: Contractor (chatting with AI agent) — 2-3 min</div>
+          <p>Chat agent collects permit data using 3 layers. <strong>Layer A</strong> (always asked): what work are you doing, where (address), who are you (contractor license). <strong>Layer B</strong> (triggered by work type): for "reroof" → roof material, slope, area; for "HVAC" → BTU rating, unit count. <strong>Layer C</strong> (triggered by city): only asked if the master map flags city-specific required fields (e.g., "Austin requires cabinet count for kitchen remodels"). System auto-resolves address → parcel number, zoning code, jurisdiction, and flood zone via GIS databases and county assessor APIs.</p>
+        </div>
+      </div>
+      <div class="state-detail">
+        <div class="state-detail-grid">
+          <div class="sd-item"><div class="sd-label sd-label-in">Input</div>Contractor's project knowledge + address</div>
+          <div class="sd-item"><div class="sd-label sd-label-out">Output</div>Structured permit data (3 layers) + auto-resolved property data</div>
+          <div class="sd-item"><div class="sd-label sd-label-fail">If it fails</div>Address not found in GIS → ask contractor for parcel number directly. Contractor abandons chat → save draft, send follow-up link.</div>
+          <div class="sd-item"><div class="sd-label sd-label-time">Duration</div>2-3 min contractor time. Address resolution: <1 sec.</div>
+          <div class="sd-item"><div class="sd-label sd-label-source">Comes from</div><span class="tag tag-opt1">Opt 1</span> layered data model + address pipeline</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="connector"><div class="arrow"></div></div>
+
+    <!-- STATE G -->
+    <div class="state-card">
+      <div class="state-top">
+        <div class="state-letter" style="background:var(--green);">G</div>
+        <div class="state-main">
+          <h4>Gap Check — Catch Missing Data Before Contractor Leaves</h4>
+          <div class="who">Who: System (instant, automated) → Contractor (if gaps found)</div>
+          <p>Cross-reference the master map's list of required fields against what we've collected. For each required field: is it already in our data (Layer A/B), derivable (auto-lookup), safe to default (N/A), or still missing? If anything is missing, ask the contractor immediately — while they're still in the chat. This uses the pre-built map, not a live website scan (no latency, no dependency on government site speed). Once all gaps are filled, the contractor's session ends. They get a "we'll text you when it's done" message.</p>
+        </div>
+      </div>
+      <div class="state-detail">
+        <div class="state-detail-grid">
+          <div class="sd-item"><div class="sd-label sd-label-in">Input</div>Collected data + master map's required field list + field classifications</div>
+          <div class="sd-item"><div class="sd-label sd-label-out">Output</div>Complete data set — every required field has a value</div>
+          <div class="sd-item"><div class="sd-label sd-label-fail">If it fails</div>Contractor can't answer a question → mark field as "unknown, needs callback." Bot will attempt fill with best guess and flag for human review at submit time.</div>
+          <div class="sd-item"><div class="sd-label sd-label-time">Duration</div>0 sec if no gaps. 30-60 sec if 1-2 gap questions.</div>
+          <div class="sd-item"><div class="sd-label sd-label-source">Comes from</div><span class="tag tag-opt2">Opt 2</span> real-time gap check idea (improved: uses map instead of live scout)</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="connector"><div class="arrow"></div></div>
+
+    <!-- STATE H -->
+    <div class="state-card">
+      <div class="state-top">
+        <div class="state-letter" style="background:var(--green);">H</div>
+        <div class="state-main">
+          <h4>Form Filling — Bot Follows the Map</h4>
+          <div class="who">Who: Playwright bot (background, async, zero AI) — 5-15 min</div>
+          <p>Contractor is gone. Bot picks up the permit from the queue. Opens the city website, logs in with the contractor's credentials. For each page in the map: (1) wait for the expected URL/element, (2) fill each field using primary selector → if not found, try backup selector → if not found, try XPath, (3) apply format transforms (uppercase, $currency, MM/DD/YYYY), (4) handle nested forms recursively (click "Add Owner" trigger → wait for modal → fill modal fields → click Save → wait for modal close), (5) handle conditional branches (check which dropdown value was selected → follow the matching path in the map), (6) click Next → wait for page transition. If the bot encounters a field not in the map: classify using Opt 1's intent rules. If safe → auto-fill. If risky → pause the permit and alert ops.</p>
+        </div>
+      </div>
+      <div class="state-detail">
+        <div class="state-detail-grid">
+          <div class="sd-item"><div class="sd-label sd-label-in">Input</div>Complete permit data + approved master map + contractor credentials</div>
+          <div class="sd-item"><div class="sd-label sd-label-out">Output</div>Filled form (page by page), ready for verification</div>
+          <div class="sd-item"><div class="sd-label sd-label-fail">If it fails</div>Selector not found (all 3 fallbacks) → pause, screenshot, alert ops. Page doesn't load → retry 3x with backoff. Session expires → re-login and resume from last saved page. Unknown field → classify and handle.</div>
+          <div class="sd-item"><div class="sd-label sd-label-time">Duration</div>5-15 min depending on form complexity. Simple (reroof): ~5 min. Complex (new construction): ~15 min.</div>
+          <div class="sd-item"><div class="sd-label sd-label-source">Comes from</div><span class="tag tag-opt3">Opt 3</span> execution engine + <span class="tag tag-opt1">Opt 1</span> unknown field handling</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="connector"><div class="arrow"></div></div>
+
+    <!-- STATE I -->
+    <div class="state-card">
+      <div class="state-top">
+        <div class="state-letter" style="background:var(--green);">I</div>
+        <div class="state-main">
+          <h4>Per-Page Verification + Submit</h4>
+          <div class="who">Who: Verifier system (automated, after each page)</div>
+          <p>After the bot fills each page (not just the final summary): (1) read back every field value from the live page via DOM queries, (2) compare each value to what we intended to fill, (3) take a screenshot of the filled page as evidence. If any field mismatches: clear the field, re-fill, re-verify. If it fails twice on the same field: flag for human review. After ALL pages pass: navigate to the submit/review page, do a final comparison of the summary values, then submit. Take a screenshot of the confirmation page. Send the contractor a text: "Your permit has been submitted. Confirmation #XYZ."</p>
+        </div>
+      </div>
+      <div class="state-detail">
+        <div class="state-detail-grid">
+          <div class="sd-item"><div class="sd-label sd-label-in">Input</div>Filled page + expected values (per page)</div>
+          <div class="sd-item"><div class="sd-label sd-label-out">Output</div>Submitted permit + confirmation screenshot + audit trail (per-page screenshots + field comparison logs)</div>
+          <div class="sd-item"><div class="sd-label sd-label-fail">If it fails</div>Field mismatch after 2 retries → pause permit, send screenshots to ops. Submit button error → screenshot, retry once, then flag. Confirmation page not detected → flag as "status unknown" for manual check.</div>
+          <div class="sd-item"><div class="sd-label sd-label-time">Duration</div>~1-2 min of verification overhead per permit (runs during fill)</div>
+          <div class="sd-item"><div class="sd-label sd-label-source">Comes from</div><span class="tag tag-opt3">Opt 3</span> per-page verification + screenshot evidence</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="callout" style="margin:24px 0;">
+    <strong>After States F–I:</strong> Contractor spent 2-3 min. Bot spent 5-15 min in background. Permit is submitted with full audit trail. Contractor got a text.
+  </div>
+
+  <!-- ──── PHASE 3: ONGOING OPS ──── -->
+  <div class="flow-phase phase-ops">
+    <div class="phase-header">
+      <div class="phase-num">III</div>
+      <h3>Operations Phase — Keeping everything working over time</h3>
+    </div>
+
+    <!-- STATE J -->
+    <div class="state-card">
+      <div class="state-top">
+        <div class="state-letter" style="background:var(--orange);">J</div>
+        <div class="state-main">
+          <h4>Change Detection + Auto-Heal</h4>
+          <div class="who">Who: System (always-on) + Nightly regression + Auto re-explore</div>
+          <p><strong>Layer 1 — Every real fill:</strong> When the bot fills a permit, it compares the live page's structure (form fields present, their selectors, page URL) against the stored map fingerprint. If they don't match → flag the city as "drift detected." The current permit continues using selector fallbacks if possible.<br>
+          <strong>Layer 2 — Nightly regression:</strong> Each night, test a rotating 20% of active cities with a synthetic permit. Compare page structure against stored maps.<br>
+          <strong>Layer 3 — Failure rate monitoring:</strong> If a city's failure rate spikes above 10% over 24 hours → auto-trigger re-exploration.<br>
+          <strong>Auto-heal:</strong> When drift is confirmed: automatically re-explore (10 runs, State B) → re-synthesize map (State C) → run 3 test fills → if all pass, hot-swap the old map for the new one. If test fills fail → pause new permits for this city and alert ops.</p>
+        </div>
+      </div>
+      <div class="state-detail">
+        <div class="state-detail-grid">
+          <div class="sd-item"><div class="sd-label sd-label-in">Input</div>Stored map fingerprints + nightly schedule + failure rate metrics</div>
+          <div class="sd-item"><div class="sd-label sd-label-out">Output</div>Updated maps (auto-healed) OR ops alerts for manual intervention</div>
+          <div class="sd-item"><div class="sd-label sd-label-fail">If it fails</div>Auto-heal produces a bad map → test fills catch it → ops alert. All nightly checks fail (infra issue) → alert on missing heartbeat.</div>
+          <div class="sd-item"><div class="sd-label sd-label-time">Duration</div>Auto-heal: ~30 min end-to-end. Nightly regression: ~1-2 hours for 20% of cities.</div>
+          <div class="sd-item"><div class="sd-label sd-label-source">Comes from</div><span class="tag tag-opt3">Opt 3</span> 3-layer change detection</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- ═══════════════════ 3. ASSUMPTIONS ═══════════════════ -->
+<div class="section">
+  <div class="section-header"><div class="section-num">3</div><h2>Assumptions We're Making</h2></div>
+  <p style="color:var(--muted);margin-bottom:20px;font-size:.88rem;">These are things we believe to be true but haven't proven yet. If any of these are wrong, the approach needs rethinking.</p>
+
+  <div class="table-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th style="width:5%;">#</th>
+        <th style="width:30%;">Assumption</th>
+        <th style="width:35%;">Why we believe it</th>
+        <th style="width:30%;">What breaks if it's wrong</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>A1</td>
+        <td><strong>AI can synthesize 10 recordings into an accurate master map</strong></td>
+        <td>GPT-4 / Claude can parse HTML and describe form structures reliably in testing. Multi-run approach reduces single-run errors.</td>
+        <td>Everything. If maps are consistently wrong, the entire exploration pipeline fails. Human review becomes 2-hour deep audits instead of 15-minute spot checks. <strong>This is the #1 assumption to validate.</strong></td>
+      </tr>
+      <tr>
+        <td>A2</td>
+        <td><strong>Government websites don't change frequently</strong></td>
+        <td>Government IT moves slowly. Major redesigns are quarterly or annual events, not weekly.</td>
+        <td>Nightly checks aren't enough. Maps go stale faster than we can rebuild them. Need real-time detection on every fill (which we have as Layer 1, but it becomes the primary defense).</td>
+      </tr>
+      <tr>
+        <td>A3</td>
+        <td><strong>Most cities use a few common vendor platforms</strong></td>
+        <td>Accela, Tyler Technologies, CityView, and OpenGov dominate the market. Industry research suggests top 5 vendors cover 60-70% of mid-to-large cities.</td>
+        <td>Vendor clustering doesn't help. Every city is unique. Exploration cost stays at 50,000 sessions instead of dropping to ~10,000. Scaling economics get 5x worse.</td>
+      </tr>
+      <tr>
+        <td>A4</td>
+        <td><strong>Permit forms are deterministic</strong></td>
+        <td>Same inputs should always produce the same form flow. Government forms follow regulations, not A/B tests.</td>
+        <td>If forms have random elements (session-specific fields, dynamic ordering), the master map concept breaks. Each fill would need some AI reasoning.</td>
+      </tr>
+      <tr>
+        <td>A5</td>
+        <td><strong>Contractors already have portal accounts</strong></td>
+        <td>Licensed contractors typically must register with their city/county. We fill forms with their credentials.</td>
+        <td>If we need to create accounts, that's a whole separate problem (email verification, identity proofing, etc.). Out of scope for v1.</td>
+      </tr>
+      <tr>
+        <td>A6</td>
+        <td><strong>Address → parcel/zoning data is programmatically accessible</strong></td>
+        <td>County assessor databases and GIS systems increasingly offer APIs. Commercial services (Regrid, ATTOM) aggregate this data.</td>
+        <td>If resolution requires manual lookup for many addresses, the automated intake breaks. Contractor sessions get longer. Address errors persist.</td>
+      </tr>
+      <tr>
+        <td>A7</td>
+        <td><strong>Simple permit types are enough for v1</strong></td>
+        <td>Reroof, water heater, HVAC are high-volume, low-complexity permits. Contractors file these frequently.</td>
+        <td>If the market demands complex permits (new construction, additions) from day one, the MVP scope is too narrow to get traction.</td>
+      </tr>
+      <tr>
+        <td>A8</td>
+        <td><strong>Government sites don't aggressively block bots</strong></td>
+        <td>Most city permit portals don't have sophisticated bot detection. They're built for form submission, not adversarial security.</td>
+        <td>If CAPTCHAs, rate limiting, or IP blocking are common, every fill gets blocked. Need CAPTCHA solving services or human-in-the-loop for each fill — destroying the cost model.</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+</div>
+
+<!-- ═══════════════════ 4. OBJECTIONS ═══════════════════ -->
+<div class="section">
+  <div class="section-header"><div class="section-num">4</div><h2>Likely Objections & Honest Answers</h2></div>
+  <p style="color:var(--muted);margin-bottom:20px;font-size:.88rem;">These are the pushbacks a skeptical engineer, PM, or investor would raise. Here's how we'd respond — and where the honest answer is "we don't know yet."</p>
+
+  <div class="risk-grid">
+    <div class="risk-card risk-high">
+      <div class="severity">Hard objection</div>
+      <h4>"AI synthesis producing accurate maps is a huge bet. What if it's only 70% accurate?"</h4>
+      <p>Fair. AI synthesis quality is the single biggest technical risk. If maps are 70% accurate, human review goes from 15 minutes to 2+ hours of debugging — and you're basically back to manual config creation (Option 1's problem).</p>
+      <div class="mitigation"><strong>Our answer:</strong> This is why we validate with 5 clean test fills (State E) before going live. If synthesis is bad, we find out before any real contractor is affected. The real question is: does synthesis improve with more data? If yes (vendor templates help, field library grows), the bet pays off over time. If no, we fall back to Plan B (see Fallbacks).</div>
+    </div>
+
+    <div class="risk-card risk-high">
+      <div class="severity">Hard objection</div>
+      <h4>"You're automating government form submission. What about legal liability?"</h4>
+      <p>If the bot submits incorrect information on a permit application, the contractor is legally responsible. A wrong permit can lead to code violations, failed inspections, or worse.</p>
+      <div class="mitigation"><strong>Our answer:</strong> Per-page verification + screenshot audit trail provides evidence of exactly what was submitted. The contractor reviews a pre-submission summary before we submit. We hold liability insurance. And we start with low-risk permit types (reroof, water heater) where errors are less consequential than, say, structural permits.</div>
+    </div>
+
+    <div class="risk-card risk-med">
+      <div class="severity">Medium objection</div>
+      <h4>"10+ exploration runs per city is expensive. At 1,000 cities that's $50-100K just in AI costs."</h4>
+      <p>True. Exploration is the most expensive part of the system. And re-exploration on website changes adds ongoing cost.</p>
+      <div class="mitigation"><strong>Our answer:</strong> Vendor clustering cuts this by 60-80%. If 5 vendors cover 70% of cities, we deeply explore ~150 unique platform variants, not 1,000. The other 700 cities get cloned maps with targeted difference checks (~2 runs instead of 10). This brings the cost to $15-25K. Compare to Option 1's alternative: 10,000-15,000 hours of human work.</div>
+    </div>
+
+    <div class="risk-card risk-med">
+      <div class="severity">Medium objection</div>
+      <h4>"What happens when a city has a CAPTCHA or blocks automated access?"</h4>
+      <p>Some government portals do have bot detection, especially newer ones. If the bot can't get past the login, nothing works.</p>
+      <div class="mitigation"><strong>Our answer:</strong> We handle this per-city. Options: (1) use the contractor's authenticated session token instead of replaying login, (2) use residential proxies, (3) for CAPTCHAs, use a CAPTCHA solving service ($2-3 per 1,000 solves), (4) for the hardest cases, have a human do the login step only and the bot takes over for form filling. This is a known problem with known solutions — not an architectural blocker.</div>
+    </div>
+
+    <div class="risk-card risk-med">
+      <div class="severity">Medium objection</div>
+      <h4>"You're building a lot of infrastructure before proving the concept works."</h4>
+      <p>The full system (exploration + synthesis + data model + gap check + verification + change detection) is 33+ weeks of work before scale. That's a big investment.</p>
+      <div class="mitigation"><strong>Our answer:</strong> We don't build it all at once. Weeks 1-12 (data model + explorer + fill bot) prove the core concept with 1 city. If the exploration → map → fill pipeline doesn't work for 1 city, we stop. The UX features (gap check, async fill, vendor clustering) only get built after we've proven the engine works. See Validation Tests below.</div>
+    </div>
+
+    <div class="risk-card risk-low">
+      <div class="severity">Minor objection</div>
+      <h4>"Why not just use AI to fill forms every time? Models are getting better."</h4>
+      <p>AI-per-permit sounds simpler. And models are improving fast.</p>
+      <div class="mitigation"><strong>Our answer:</strong> Three reasons. (1) <strong>Cost:</strong> AI per permit at scale = $0.50-2.00 per fill × millions of permits = unsustainable. Map + dumb bot = $0.01 per fill. (2) <strong>Reliability:</strong> Even 99% AI accuracy means 1 in 100 permits is wrong. With deterministic map-following, errors are systematic (fixable), not random (unpredictable). (3) <strong>Liability:</strong> "The AI decided to put $50,000 instead of $5,000" is a much worse story than "the map had an error that we caught in testing." But we keep this as Fallback Plan C if the map approach fails for certain site types.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════ 5. RISKS ═══════════════════ -->
+<div class="section">
+  <div class="section-header"><div class="section-num">5</div><h2>Risks — What Can Go Wrong</h2></div>
+
+  <div class="risk-grid">
+    <div class="risk-card risk-high">
+      <div class="severity">High risk</div>
+      <h4>AI synthesis produces maps that look right but have subtle errors</h4>
+      <p>The map passes human review but has a wrong selector, missing conditional branch, or incorrect field mapping. Real permits get submitted with wrong data. You don't find out until the contractor gets a rejection letter.</p>
+      <div class="mitigation"><strong>Mitigation:</strong> Per-page verification catches most fill-time errors. 5-run validation catches structural errors. But subtle mapping errors (e.g., "project cost" mapped to "property value") could pass both checks. Add a "first 10 real permits" monitoring period where ops manually reviews every submission before auto-submit is enabled.</div>
+    </div>
+
+    <div class="risk-card risk-high">
+      <div class="severity">High risk</div>
+      <h4>Government portals block or rate-limit our bot</h4>
+      <p>If a city detects automated access and blocks our IP or adds aggressive CAPTCHAs, all permits for that city stop working.</p>
+      <div class="mitigation"><strong>Mitigation:</strong> Use residential proxies. Throttle to human-speed interactions (2-3 sec between actions). Rotate IPs per session. For worst cases, fall back to contractor-authenticated sessions. Budget for CAPTCHA solving services.</div>
+    </div>
+
+    <div class="risk-card risk-high">
+      <div class="severity">High risk</div>
+      <h4>Vendor clustering assumption is wrong — most cities are unique</h4>
+      <p>If the top 5 vendors only cover 30% of cities (not 70%), exploration cost doesn't drop with vendor reuse. Every city needs full 10-run exploration. Scaling economics are 3-5x worse than projected.</p>
+      <div class="mitigation"><strong>Mitigation:</strong> Validate this before building vendor clustering. Survey 100 target cities and identify their platform vendor. If reuse is <40%, skip vendor clustering and invest in making exploration cheaper (fewer runs, smarter AI, cached DOM patterns).</div>
+    </div>
+
+    <div class="risk-card risk-med">
+      <div class="severity">Medium risk</div>
+      <h4>Address auto-resolution fails for many properties</h4>
+      <p>GIS and assessor databases have gaps, especially for new developments, rural areas, and recently annexed properties. If resolution fails 20%+ of the time, the automated intake breaks.</p>
+      <div class="mitigation"><strong>Mitigation:</strong> Use multiple data sources with fallback chain (county assessor → GIS → commercial API → manual entry). Track resolution success rate. If below 90%, invest in data partnerships or ask contractors for parcel numbers directly.</div>
+    </div>
+
+    <div class="risk-card risk-med">
+      <div class="severity">Medium risk</div>
+      <h4>Form complexity exceeds what the map model can represent</h4>
+      <p>Some permit forms may have: dynamically generated fields based on API calls, embedded third-party widgets (payment processors, document uploaders), multi-session workflows (start today, come back tomorrow after inspection). The JSON map model may not capture these.</p>
+      <div class="mitigation"><strong>Mitigation:</strong> Start with simple permit types (reroof, HVAC) where forms are predictable. For complex forms, create "map extensions" that handle special cases (file upload steps, payment steps, multi-session checkpoints). Identify the limit of what maps can handle early — during the first 10 cities.</div>
+    </div>
+
+    <div class="risk-card risk-med">
+      <div class="severity">Medium risk</div>
+      <h4>Website changes faster than we can detect and auto-heal</h4>
+      <p>If a city does a major platform migration (Accela → Tyler) and our nightly check happens to miss it, all permits for that city fail until the next check cycle.</p>
+      <div class="mitigation"><strong>Mitigation:</strong> Layer 1 detection (every real fill checks structure) means we catch changes within 1 fill attempt, not 1 night. Failed permits auto-retry after re-exploration. Real SLA is "first fill after change fails, second fill uses updated map." Contractor gets delayed, not harmed.</div>
+    </div>
+
+    <div class="risk-card risk-low">
+      <div class="severity">Low risk</div>
+      <h4>Contractors don't trust automated permit filing</h4>
+      <p>Contractors may prefer to fill forms themselves rather than trust a bot with their permit applications. Low adoption.</p>
+      <div class="mitigation"><strong>Mitigation:</strong> Start with contractors who already use permit expediting services (they're used to someone else filing). Show them the per-page screenshots and audit trail. Offer "review before submit" mode where they approve the filled form before the bot clicks Submit.</div>
+    </div>
+
+    <div class="risk-card risk-low">
+      <div class="severity">Low risk</div>
+      <h4>AI costs increase significantly</h4>
+      <p>If AI API pricing goes up 5-10x, the exploration cost model breaks at scale.</p>
+      <div class="mitigation"><strong>Mitigation:</strong> AI is only used during exploration (one-time per city) and re-exploration (occasional). Even a 5x price increase on a one-time cost is manageable. If it becomes extreme, switch to open-source models for synthesis. The fill-time cost is already $0 in AI.</div>
+    </div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- ═══════════════════ 6. VALIDATION TESTS ═══════════════════ -->
+<div class="section">
+  <div class="section-header"><div class="section-num">6</div><h2>How to Validate This Approach — Test Plan</h2></div>
+  <p style="color:var(--muted);margin-bottom:24px;font-size:.88rem;">Before building the full system, run these tests in order. Each one validates a core assumption. If a test fails, decide whether to fix, adapt, or kill the approach.</p>
+
+  <!-- Test timeline -->
+  <div class="timeline-bar">
+    <div class="timeline-seg" style="flex:2;background:var(--accent1);">Week 1-2</div>
+    <div class="timeline-seg" style="flex:3;background:var(--green);">Week 3-5</div>
+    <div class="timeline-seg" style="flex:3;background:var(--accent3);">Week 6-8</div>
+    <div class="timeline-seg" style="flex:2;background:var(--orange);">Week 9-10</div>
+    <div class="timeline-seg" style="flex:2;background:var(--red);">Week 11-12</div>
+  </div>
+  <div style="display:flex;justify-content:space-between;font-size:.7rem;color:var(--muted);margin-bottom:28px;">
+    <span>T1: Can AI map a form?</span>
+    <span>T2: Can bot follow map?</span>
+    <span>T3: Does it work on 3 cities?</span>
+    <span>T4: Does vendor reuse work?</span>
+    <span>T5: Can it self-heal?</span>
+  </div>
+
+  <!-- TEST 1 -->
+  <div class="test-card">
+    <h4>Test 1 — Can AI accurately map a permit form?</h4>
+    <div class="test-meta">
+      <span><strong>When:</strong> Week 1-2</span>
+      <span><strong>Effort:</strong> 1 engineer, 2 weeks</span>
+      <span><strong>Cost:</strong> ~$50-100 in AI API calls</span>
+      <span><strong>Validates:</strong> Assumption A1 (AI synthesis quality)</span>
+    </div>
+    <p>Pick 3 real city permit portals (1 simple, 1 medium, 1 complex). Have AI explore each one 10 times and synthesize a master map. Then have a human independently map the same 3 sites manually (the ground truth). Compare: field accuracy, page flow accuracy, conditional branch accuracy, nested form accuracy.</p>
+    <div class="pass-criteria"><strong>Pass if:</strong> AI maps achieve ≥85% field accuracy and ≥90% page flow accuracy across all 3 sites. Errors are "fixable in review" (wrong selector, not wrong page structure).</div>
+    <div class="fail-action"><strong>If it fails:</strong> If accuracy is 60-85% → investigate why. Are errors systematic (always misses modals) or random? Systematic errors can be fixed with better prompting or post-processing. If accuracy is <60% → this approach may not work. Consider Plan B (AI-assisted manual mapping).</div>
+  </div>
+
+  <!-- TEST 2 -->
+  <div class="test-card">
+    <h4>Test 2 — Can a bot reliably follow the map to fill a form?</h4>
+    <div class="test-meta">
+      <span><strong>When:</strong> Week 3-5</span>
+      <span><strong>Effort:</strong> 1-2 engineers, 3 weeks</span>
+      <span><strong>Cost:</strong> Minimal (Playwright compute only)</span>
+      <span><strong>Validates:</strong> Map → execution pipeline works end-to-end</span>
+    </div>
+    <p>Using the maps from Test 1 (manually corrected if needed), build the Playwright bot that follows the map. Run 20 test permits per city (60 total). Measure: fill success rate (all fields correctly filled), error types (selector failures, timing issues, popup failures), and recovery rate (how often fallback selectors save a failed fill).</p>
+    <div class="pass-criteria"><strong>Pass if:</strong> ≥90% of test permits fill completely with correct data. Remaining 10% fail in recoverable ways (selector fallback works, retry succeeds). Zero data corruption (wrong value in wrong field).</div>
+    <div class="fail-action"><strong>If it fails:</strong> If success rate is 70-90% → analyze failure patterns. Timing issues → add smarter waits. Selector issues → improve fallback logic. If success rate is <70% → the map format isn't rich enough to describe real form interactions. Consider adding AI at fill time for specific hard steps (hybrid fill).</div>
+  </div>
+
+  <!-- TEST 3 -->
+  <div class="test-card">
+    <h4>Test 3 — Does it work across 3 different cities with different platforms?</h4>
+    <div class="test-meta">
+      <span><strong>When:</strong> Week 6-8</span>
+      <span><strong>Effort:</strong> 1-2 engineers, 3 weeks</span>
+      <span><strong>Cost:</strong> ~$200-500 in AI + compute</span>
+      <span><strong>Validates:</strong> The approach generalizes (not just one lucky city)</span>
+    </div>
+    <p>Run the full pipeline (explore → synthesize → review → validate → fill) on 3 cities using different vendor platforms (e.g., 1 Accela, 1 Tyler, 1 custom-built). Measure: end-to-end time per city (from URL to production-ready), human time per city, fill success rate, and number of map corrections needed during review.</p>
+    <div class="pass-criteria"><strong>Pass if:</strong> All 3 cities reach production-ready with ≤45 min of human time each. Fill success rate ≥90% per city. No city requires >2 re-exploration cycles.</div>
+    <div class="fail-action"><strong>If it fails:</strong> If 1 of 3 cities fails → investigate why. Platform-specific issue? Add platform-specific handling. If 2+ cities fail → the approach doesn't generalize. Go to Kill Criteria assessment.</div>
+  </div>
+
+  <!-- TEST 4 -->
+  <div class="test-card">
+    <h4>Test 4 — Does vendor template reuse actually work?</h4>
+    <div class="test-meta">
+      <span><strong>When:</strong> Week 9-10</span>
+      <span><strong>Effort:</strong> 1 engineer, 2 weeks</span>
+      <span><strong>Cost:</strong> ~$100-200 in AI calls</span>
+      <span><strong>Validates:</strong> Assumption A3 (vendor clustering reduces cost)</span>
+    </div>
+    <p>Take the working Accela map from Test 3 and use it as a template for 2 other Accela cities. Measure: how much of the template was reusable (% of fields that mapped correctly without re-exploration), how much exploration was needed for differences only, and total human time for the template-based cities vs. from-scratch.</p>
+    <div class="pass-criteria"><strong>Pass if:</strong> Template reuse covers ≥60% of fields. Exploration time drops by ≥50% compared to from-scratch. Human review time drops by ≥40%.</div>
+    <div class="fail-action"><strong>If it fails:</strong> If reuse is 30-60% → templates still help, but less than hoped. Adjust scaling cost projections upward. If reuse is <30% → vendor clustering doesn't work. Each city is unique. Adjust the economics and timeline. This doesn't kill the approach, but makes scaling 2-3x more expensive.</div>
+  </div>
+
+  <!-- TEST 5 -->
+  <div class="test-card">
+    <h4>Test 5 — Can the system detect and auto-recover from a website change?</h4>
+    <div class="test-meta">
+      <span><strong>When:</strong> Week 11-12</span>
+      <span><strong>Effort:</strong> 1-2 engineers, 2 weeks</span>
+      <span><strong>Cost:</strong> ~$100 in AI calls</span>
+      <span><strong>Validates:</strong> Auto-heal pipeline works (Assumption A2)</span>
+    </div>
+    <p>Simulate a website change: take a working city map and manually alter the test site (add a field, move a button, change a URL path, swap a dropdown). Run a permit fill → observe that drift is detected → observe that auto re-exploration triggers → observe that new map is generated → observe that test fills pass → observe that the map is swapped. Measure: detection time, heal time, and whether the new map is correct.</p>
+    <div class="pass-criteria"><strong>Pass if:</strong> Change detected on first fill attempt after the change. Auto-heal completes in <60 min. New map passes 3 test fills. No human intervention needed.</div>
+    <div class="fail-action"><strong>If it fails:</strong> If detection works but heal is wrong → synthesis quality issue (back to Test 1 concerns). If detection doesn't work → fingerprinting logic is wrong, but this is a fixable engineering problem, not an architecture issue.</div>
+  </div>
+</div>
+
+<!-- ═══════════════════ 7. KILL CRITERIA ═══════════════════ -->
+<div class="section">
+  <div class="section-header"><div class="section-num">7</div><h2>When to Kill This Approach</h2></div>
+  <p style="color:var(--muted);margin-bottom:24px;font-size:.88rem;">Not every approach works. Here are the specific signals that mean we should stop investing in this direction and switch to a fallback. These are not "try harder" signals — they're "this architecture doesn't fit the problem" signals.</p>
+
+  <div class="kill-card">
+    <h4>Kill Signal #1 — AI synthesis accuracy is consistently below 70%</h4>
+    <p>If after 3 iterations of prompt tuning, post-processing rules, and improved exploration strategies, AI maps are still <70% accurate on field mappings — the core assumption is broken. Human review becomes essentially "rewrite the map from scratch," which is just Option 1 with extra steps.</p>
+    <div class="then"><strong>When to decide:</strong> End of Week 4 (after Test 1 + one round of improvements). If a second round of improvements (Week 5-6) doesn't push accuracy above 80%, kill.</div>
+  </div>
+
+  <div class="kill-card">
+    <h4>Kill Signal #2 — Fill success rate stays below 80% after map corrections</h4>
+    <p>If the bot can't reliably follow even a manually-corrected map — failing on timing, selectors, popups, or navigation — the map format isn't expressive enough to describe real form interactions. The problem isn't the AI; it's that "a JSON map" isn't the right abstraction for form filling.</p>
+    <div class="then"><strong>When to decide:</strong> End of Week 8 (after Test 2 + Test 3). If 2+ cities can't hit 80% fill rate with corrected maps, the map-following approach needs fundamental rethinking.</div>
+  </div>
+
+  <div class="kill-card">
+    <h4>Kill Signal #3 — Human time per city exceeds 4 hours</h4>
+    <p>If the total human effort per city (review + corrections + validation monitoring) consistently takes >4 hours, the economics don't work. At 1,000 cities, that's 4,000+ hours — better than Option 1's 10,000-15,000 hours, but not the 500-hour target we need for the approach to be worth the engineering investment.</p>
+    <div class="then"><strong>When to decide:</strong> End of Week 10 (after 5+ cities onboarded). Track human time per city. If the trend line is flat at >4 hours (not decreasing with experience), the approach isn't scaling as promised.</div>
+  </div>
+
+  <div class="kill-card">
+    <h4>Kill Signal #4 — Government portals actively block us and workarounds don't help</h4>
+    <p>If >30% of target cities have bot detection that we can't work around (CAPTCHAs on every page, IP bans, requiring human-only browser sessions), the automated approach doesn't cover enough of the market to be viable.</p>
+    <div class="then"><strong>When to decide:</strong> End of Week 12 (after testing 10+ cities). If bot blocking rate is >30% and workarounds (proxies, session tokens, CAPTCHA solving) don't reduce it below 15%, switch to a human-assisted model.</div>
+  </div>
+
+  <div class="callout callout-red" style="margin-top:20px;">
+    <strong>If we hit any kill signal:</strong> Don't throw away all the work. The data model (from Opt 1), address resolution pipeline, and contractor chat agent are all reusable regardless of the fill approach. What changes is <em>how we fill the form</em>, not how we collect and organize the data. See Fallbacks below.
+  </div>
+</div>
+
+<!-- ═══════════════════ 8. FALLBACK OPTIONS ═══════════════════ -->
+<div class="section">
+  <div class="section-header"><div class="section-num">8</div><h2>Fallback Options — If This Approach Fails</h2></div>
+  <p style="color:var(--muted);margin-bottom:24px;font-size:.88rem;">Ordered from closest to the original approach (minimal pivot) to furthest (full direction change). Each fallback preserves as much of the existing work as possible.</p>
+
+  <div class="fallback-card">
+    <h4>Fallback A — AI-Assisted Manual Mapping (keep the engine, fix the maps differently)</h4>
+    <p>If AI synthesis is inaccurate (Kill Signal #1), replace the fully-automated exploration → synthesis pipeline with a <strong>human-in-the-loop mapping tool</strong>. An ops person walks through the site in a special browser. The tool auto-captures every field, selector, and page transition as they click. AI suggests field mappings in real-time ("this field looks like 'project cost'"), and the human confirms or corrects with one click. The output is the same master map format — so the fill bot, verification, change detection, and everything downstream stays the same.</p>
+    <div class="trigger"><strong>Trigger:</strong> AI map accuracy <70% after 2 rounds of improvement (end of Week 6).</div>
+    <div class="what-changes"><strong>What changes:</strong> States B + C (exploration + synthesis) replaced with assisted manual tool. States D-J stay the same. Human time per city goes from 15 min → 1-2 hours. Still better than Option 1's 10-15 hours because the tool auto-captures selectors.</div>
+  </div>
+
+  <div class="fallback-card">
+    <h4>Fallback B — Hybrid Fill (map for easy parts, AI for hard parts)</h4>
+    <p>If the map format can't handle complex interactions (Kill Signal #2), use the map for straightforward pages (text fields, dropdowns, checkboxes) but invoke AI for specific hard steps: nested modal sequences, dynamic form sections, multi-step conditional logic. The map marks certain steps as "AI-assisted" and passes context + screenshot to AI for those steps only. This increases per-permit cost (AI calls for some steps) but keeps the map as the primary execution plan.</p>
+    <div class="trigger"><strong>Trigger:</strong> Fill success rate <80% even with corrected maps (end of Week 8). Failures concentrated on complex form interactions.</div>
+    <div class="what-changes"><strong>What changes:</strong> State H (form filling) becomes a hybrid: map-following for 80% of steps, AI-assisted for 20%. Per-permit cost goes from ~$0.01 to ~$0.10-0.30. Verification (State I) stays the same and is even more important.</div>
+  </div>
+
+  <div class="fallback-card">
+    <h4>Fallback C — AI-Per-Permit with Map as Guide (full direction change on fill)</h4>
+    <p>If neither maps nor hybrid fill works reliably, switch to AI-powered form filling for every permit. But don't throw away the map — use it as a "cheat sheet" that the AI consults. The AI opens the page, reads the map's field suggestions, and uses them as strong hints rather than hard instructions. The AI still makes the final decision on what to fill where, but the map reduces hallucination by giving it known-good mappings to start from.</p>
+    <div class="trigger"><strong>Trigger:</strong> Neither Fallback A nor B brings fill rate above 85% across 5+ cities (end of Week 12).</div>
+    <div class="what-changes"><strong>What changes:</strong> State H completely rewritten. Per-permit cost goes to $0.50-2.00. Verification (State I) becomes critical — it's the only guarantee against AI errors. Exploration (States B-C) becomes optional (nice-to-have map hints, not required). The 3-layer data model and gap check still work.</div>
+  </div>
+
+  <div class="fallback-card">
+    <h4>Fallback D — Human-Operated with Bot Assist (minimum viable product)</h4>
+    <p>If automated filling doesn't work for enough cities (Kill Signal #4 — too many portals block bots), flip the model: a human fills the form, but the system pre-fills a clipboard with all the right answers and tells them exactly what to type where. The human handles the browser interaction; the system handles the data organization and field mapping. Think "smart form-filling cheat sheet" rather than "automated bot."</p>
+    <div class="trigger"><strong>Trigger:</strong> >30% of cities block bots and workarounds don't help (end of Week 12).</div>
+    <div class="what-changes"><strong>What changes:</strong> States B-C (exploration) become optional. State H (fill) is done by a human with system guidance. States F-G (data collection + gap check) stay the same. Per-permit cost goes up (human labor) but the data model, address resolution, and intake experience are all preserved. This becomes a "permit expediting service with great software" rather than a "fully automated platform."</div>
+  </div>
+
+  <div class="callout callout-green" style="margin-top:24px;">
+    <strong>What's preserved across ALL fallbacks:</strong> The 3-layer data model, field intent classification, address auto-resolution pipeline, contractor chat agent, gap check, and audit trail. These are valuable regardless of how the form actually gets filled. The fallback decision is only about the fill mechanism — the data side and user side are permanent investments.
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- ═══════════════════ 9. DECISION TIMELINE ═══════════════════ -->
+<div class="section">
+  <div class="section-header"><div class="section-num">9</div><h2>Decision Timeline — When We Know What</h2></div>
+
+  <div class="table-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th>Week</th>
+        <th>What we've tested</th>
+        <th>Decision point</th>
+        <th>Go / Pivot / Kill</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Week 2</strong></td>
+        <td>AI synthesis accuracy on 3 cities</td>
+        <td>Is map quality ≥85%?</td>
+        <td style="color:var(--green);">≥85% → Go. <span style="color:var(--orange);">70-85% → Improve prompts, re-test.</span> <span style="color:var(--red);"><70% → Start building Fallback A tool in parallel.</span></td>
+      </tr>
+      <tr>
+        <td><strong>Week 5</strong></td>
+        <td>Bot fill rate with corrected maps</td>
+        <td>Is fill success ≥90%?</td>
+        <td style="color:var(--green);">≥90% → Go. <span style="color:var(--orange);">80-90% → Fix edge cases.</span> <span style="color:var(--red);"><80% → Evaluate Fallback B (hybrid fill).</span></td>
+      </tr>
+      <tr>
+        <td><strong>Week 8</strong></td>
+        <td>3 cities, different platforms</td>
+        <td>Does it generalize?</td>
+        <td style="color:var(--green);">3/3 work → Go to scale. <span style="color:var(--orange);">2/3 work → Investigate failure, fix.</span> <span style="color:var(--red);">1/3 or 0/3 → Kill Signal #2, switch to Fallback B.</span></td>
+      </tr>
+      <tr>
+        <td><strong>Week 10</strong></td>
+        <td>Vendor template reuse</td>
+        <td>Does clustering save ≥50% effort?</td>
+        <td style="color:var(--green);">≥50% savings → Go. <span style="color:var(--orange);">30-50% → Helpful but adjust cost model.</span> <span style="color:var(--red);"><30% → Drop clustering, eat the cost.</span></td>
+      </tr>
+      <tr>
+        <td><strong>Week 12</strong></td>
+        <td>Change detection + auto-heal + bot blocking rate</td>
+        <td>Is the system production-viable?</td>
+        <td style="color:var(--green);">All checks pass → Build out UX + scale. <span style="color:var(--orange);">Minor issues → Fix and re-test.</span> <span style="color:var(--red);">Major issues → Evaluate Fallback C or D.</span></td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="callout" style="margin-top:20px;">
+    <strong>The 12-week rule:</strong> By week 12, we will have tested every critical assumption with real data from real government websites. We will know if this approach works, needs adaptation, or should be abandoned. Total investment at that point: ~3 engineer-months + ~$1,000 in AI/compute. This is a reasonable bet for the potential payoff of automating permit filing at scale.
+  </div>
+</div>
+
+</div><!-- /container -->
+</body>
+</html>

@@ -1,0 +1,1124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Permit Automation — Architecture Analysis & Final Recommendation</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --card: #1a1d27;
+    --border: #2a2d3a;
+    --accent1: #6366f1;
+    --accent2: #22d3ee;
+    --accent3: #f59e0b;
+    --green: #10b981;
+    --red: #ef4444;
+    --text: #e2e8f0;
+    --muted: #94a3b8;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; background: var(--bg); color: var(--text); line-height: 1.7; }
+  .container { max-width: 1100px; margin: 0 auto; padding: 48px 24px; }
+
+  h1 { font-size: 2rem; font-weight: 700; margin-bottom: 6px; }
+  h2 { font-size: 1.4rem; font-weight: 600; margin-bottom: 20px; color: var(--accent2); }
+  h3 { font-size: 1.05rem; font-weight: 600; margin-bottom: 10px; }
+  .subtitle { color: var(--muted); font-size: .95rem; margin-bottom: 52px; max-width: 700px; }
+
+  .section { margin-bottom: 64px; }
+  .section-header { display: flex; align-items: center; gap: 12px; margin-bottom: 28px; }
+  .section-num { background: var(--accent1); color: #fff; font-size: .8rem; font-weight: 700; width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+
+  /* ─── Cards ─── */
+  .approaches { display: grid; grid-template-columns: repeat(auto-fit, minmax(310px, 1fr)); gap: 20px; }
+  .approach-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 24px; position: relative; overflow: hidden; }
+  .approach-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px; }
+  .approach-card.opt1::before { background: var(--accent1); }
+  .approach-card.opt2::before { background: var(--accent3); }
+  .approach-card.opt3::before { background: var(--accent2); }
+  .approach-label { font-size: .7rem; text-transform: uppercase; letter-spacing: .08em; font-weight: 700; margin-bottom: 6px; }
+  .opt1 .approach-label { color: var(--accent1); }
+  .opt2 .approach-label { color: var(--accent3); }
+  .opt3 .approach-label { color: var(--accent2); }
+  .approach-card .idea { color: var(--muted); font-size: .88rem; margin-bottom: 14px; font-style: italic; border-left: 2px solid var(--border); padding-left: 12px; }
+  .approach-card p { font-size: .9rem; margin-bottom: 10px; }
+  .how-label { font-size: .75rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin-bottom: 6px; margin-top: 14px; }
+  .approach-card ol { padding-left: 20px; font-size: .88rem; }
+  .approach-card ol li { margin-bottom: 5px; }
+
+  /* ─── Flow diagrams (vertical, with actors) ─── */
+  .flow-diagram { margin-bottom: 40px; }
+  .flow-title { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; }
+  .flow-title h3 { margin-bottom: 0; }
+  .tag { display: inline-block; font-size: .65rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; padding: 3px 8px; border-radius: 4px; }
+  .tag-opt1 { background: rgba(99,102,241,.2); color: var(--accent1); }
+  .tag-opt2 { background: rgba(245,158,11,.2); color: var(--accent3); }
+  .tag-opt3 { background: rgba(34,211,238,.2); color: var(--accent2); }
+  .tag-rec { background: rgba(16,185,129,.2); color: var(--green); }
+
+  .flow-step { display: grid; grid-template-columns: 100px 1fr 140px; gap: 0; align-items: stretch; min-height: 80px; }
+  .flow-actor { display: flex; align-items: center; justify-content: center; font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); padding: 12px 8px; text-align: center; }
+  .flow-box { background: var(--card); border: 1px solid var(--border); padding: 14px 18px; position: relative; }
+  .flow-box h4 { font-size: .88rem; font-weight: 600; margin-bottom: 4px; }
+  .flow-box p { font-size: .82rem; color: var(--muted); margin: 0; }
+  .flow-io { display: flex; flex-direction: column; justify-content: center; padding: 8px 12px; font-size: .75rem; color: var(--muted); }
+  .flow-io .io-label { font-size: .6rem; text-transform: uppercase; letter-spacing: .06em; font-weight: 700; margin-bottom: 2px; }
+  .flow-io .io-in { color: var(--accent2); }
+  .flow-io .io-out { color: var(--green); }
+
+  .flow-connector { display: flex; justify-content: center; padding: 0; }
+  .flow-connector .arrow-line { width: 2px; height: 24px; background: var(--border); margin: 0 auto; position: relative; }
+  .flow-connector .arrow-line::after { content: ''; position: absolute; bottom: -4px; left: -4px; border-left: 5px solid transparent; border-right: 5px solid transparent; border-top: 6px solid var(--border); }
+
+  /* colors per phase */
+  .step-learn .flow-box { border-left: 3px solid var(--accent1); }
+  .step-learn .flow-box h4 { color: var(--accent1); }
+  .step-user .flow-box { border-left: 3px solid var(--accent3); }
+  .step-user .flow-box h4 { color: var(--accent3); }
+  .step-run .flow-box { border-left: 3px solid var(--green); }
+  .step-run .flow-box h4 { color: var(--green); }
+  .step-check .flow-box { border-left: 3px solid #a78bfa; }
+  .step-check .flow-box h4 { color: #a78bfa; }
+  .step-fix .flow-box { border-left: 3px solid var(--red); }
+  .step-fix .flow-box h4 { color: var(--red); }
+
+  /* ─── Analysis ─── */
+  .analysis-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 20px; margin-bottom: 28px; }
+  .analysis-box { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 22px; }
+  .analysis-box h4 { margin-bottom: 10px; font-size: .9rem; }
+  .analysis-box ul { padding-left: 18px; font-size: .88rem; }
+  .analysis-box ul li { margin-bottom: 8px; }
+  .strength { border-left: 4px solid var(--green); }
+  .loophole { border-left: 4px solid var(--red); }
+  .strength h4 { color: var(--green); }
+  .loophole h4 { color: var(--red); }
+
+  /* ─── Comparison table ─── */
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: .85rem; margin-bottom: 20px; }
+  th, td { padding: 10px 14px; text-align: left; border-bottom: 1px solid var(--border); }
+  th { background: var(--card); color: var(--accent2); font-weight: 600; font-size: .75rem; text-transform: uppercase; letter-spacing: .05em; }
+  .winner { color: var(--green); font-weight: 600; }
+  .meh { color: var(--muted); }
+  tr:hover td { background: rgba(99,102,241,.04); }
+
+  /* ─── Recommendation ─── */
+  .rec-box { background: linear-gradient(135deg, rgba(99,102,241,.1), rgba(34,211,238,.06)); border: 1px solid var(--accent1); border-radius: 14px; padding: 28px; margin-top: 16px; }
+  .rec-box h3 { color: var(--accent2); margin-bottom: 10px; font-size: 1.15rem; }
+  .rec-box p { font-size: .92rem; margin-bottom: 10px; }
+  .rec-box ul { padding-left: 20px; }
+  .rec-box li { font-size: .9rem; margin-bottom: 6px; }
+
+  .pick-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; margin: 20px 0; }
+  .pick-card { padding: 16px; border-radius: 8px; }
+  .pick-card h4 { margin-bottom: 8px; font-size: .9rem; }
+  .pick-card ul { padding-left: 16px; font-size: .85rem; }
+  .pick-card li { margin-bottom: 4px; }
+
+  .info-box { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 24px; }
+  .info-box ul { padding-left: 18px; }
+  .info-box li { margin-bottom: 8px; font-size: .9rem; }
+
+  .divider { height: 1px; background: var(--border); margin: 52px 0; }
+
+  .verdict { display: inline-block; padding: 4px 12px; border-radius: 6px; font-size: .78rem; font-weight: 700; }
+  .verdict-best { background: rgba(16,185,129,.18); color: var(--green); }
+  .verdict-good { background: rgba(245,158,11,.18); color: var(--accent3); }
+
+  .callout { background: rgba(34,211,238,.06); border: 1px solid rgba(34,211,238,.2); border-radius: 10px; padding: 18px 20px; margin: 20px 0; font-size: .92rem; }
+  .callout strong { color: var(--accent2); }
+</style>
+</head>
+<body>
+<div class="container">
+
+<!-- ═══════════════════ HEADER ═══════════════════ -->
+<h1>Permit Automation Platform</h1>
+<p class="subtitle">We reviewed three architecture proposals from the team. Below: what each one does in plain English, who does what in each flow, what's strong, what's missing, and our final recommended approach.</p>
+
+<!-- ═══════════════════ 1. PROBLEM ═══════════════════ -->
+<div class="section">
+  <div class="section-header"><div class="section-num">1</div><h2>The Problem We're Solving</h2></div>
+  <div class="info-box">
+    <p style="margin-bottom:12px;"><strong>Goal:</strong> A contractor tells us what work they need done. We automatically fill out and submit the permit application on the right government website &mdash; no human clicking through forms.</p>
+    <p style="margin-bottom:14px;"><strong>Why it's hard:</strong> Every city/county has a completely different website. Different fields, different pages, different dropdowns that change what shows next. There are hundreds of these sites.</p>
+    <h4 style="margin-bottom:8px; color:var(--accent3); font-size:.9rem;">The Three Bad Options We're Trying to Avoid</h4>
+    <ul>
+      <li><strong>Write a custom script per city</strong> &mdash; works perfectly, but you'd need thousands of scripts, and every website change breaks them. Doesn't scale.</li>
+      <li><strong>Let AI figure it out every time</strong> &mdash; sounds nice, but AI makes mistakes, costs money per run, and you'd be paying for the same guesswork on every single permit.</li>
+      <li><strong>Save prompts/templates per city</strong> &mdash; basically just scripts in disguise, same scaling problem.</li>
+    </ul>
+    <p style="margin-top:14px;"><strong>What we need:</strong> Use AI once to <em>learn</em> a website, save that knowledge as a reusable config file, then use simple code to fill forms the same way every time. AI learns, code executes.</p>
+  </div>
+</div>
+
+<!-- ═══════════════════ 2. THREE APPROACHES ═══════════════════ -->
+<div class="section">
+  <div class="section-header"><div class="section-num">2</div><h2>The Three Approaches (Plain English)</h2></div>
+
+  <div class="approaches">
+    <!-- Option 1 -->
+    <div class="approach-card opt1">
+      <div class="approach-label">Option 1 &mdash; "The Compiler"</div>
+      <h3>Treat Permits Like Code</h3>
+      <div class="idea">Think of each permit as a document that gets "compiled" into whatever format a city's website needs &mdash; like translating one language to another.</div>
+      <p><strong>Core idea:</strong> Build a master data model that captures everything a permit could ever need (address, work type, contractor info). For each city, write a config file that says "our field X maps to their form field Y." Then a compiler turns the data into a filled form.</p>
+      <div class="how-label">How it works</div>
+      <ol>
+        <li>Contractor answers simple questions ("What work? Where? Who are you?")</li>
+        <li>System auto-looks up the property's parcel number, zoning, etc.</li>
+        <li>System loads the config file for that city and maps our data to their fields</li>
+        <li>A bot fills the form following the config</li>
+        <li>A second check confirms all fields were filled correctly</li>
+      </ol>
+      <p style="margin-top:10px;font-size:.82rem;color:var(--muted);"><strong>Key strength:</strong> Best data model. Smart about classifying fields ("this is a fax number field &mdash; just put N/A"). <br><strong>Key gap:</strong> Doesn't explain who creates the config files or how. That's the hardest part.</p>
+    </div>
+
+    <!-- Option 2 -->
+    <div class="approach-card opt2">
+      <div class="approach-label">Option 2 &mdash; "The Quick Mapper"</div>
+      <h3>Learn On-The-Fly, Fill in Background</h3>
+      <div class="idea">Like a new employee who looks at a form they've never seen, quickly figures out what goes where, asks a manager to confirm, then remembers forever.</div>
+      <p><strong>Core idea:</strong> When the bot hits a page it's never seen, it takes a "fingerprint" of that page, uses AI to figure out which of our fields match which form fields, asks a human to confirm the mapping once, and saves it. Next time it sees that page, it just fills it automatically.</p>
+      <div class="how-label">How it works</div>
+      <ol>
+        <li>Contractor chats with our agent, gives basic info</li>
+        <li>Bot immediately opens the city website in background, discovers what fields the form actually needs (60-90 seconds)</li>
+        <li>Comes back to the contractor: "We just need 2 more things: cabinet count and roof slope"</li>
+        <li>Contractor answers, their session ends</li>
+        <li>Bot fills the form in the background, contractor gets a text when done</li>
+      </ol>
+      <p style="margin-top:10px;font-size:.82rem;color:var(--muted);"><strong>Key strength:</strong> Best contractor experience &mdash; fast intake, background filling. <br><strong>Key gap:</strong> Fingerprinting breaks on tiny website changes. No plan for forms where dropdowns change what shows next.</p>
+    </div>
+
+    <!-- Option 3 -->
+    <div class="approach-card opt3">
+      <div class="approach-label">Option 3 &mdash; "The Explorer"</div>
+      <h3>Deeply Map Each Site, Then Follow the Map</h3>
+      <div class="idea">Like sending a scout into a building to map every room, hallway, and door &mdash; then giving that map to a delivery driver who follows it blindly every time.</div>
+      <p><strong>Core idea:</strong> Before we serve a single permit for a city, an AI "explorer" runs through the website 10+ times with different inputs, recording everything: every field, every button, every popup, every dropdown that changes the flow. Then AI synthesizes all those recordings into one master map. A human reviews the map. From then on, a simple bot follows the map to fill permits &mdash; no AI needed at fill time.</p>
+      <div class="how-label">How it works</div>
+      <ol>
+        <li><strong>Explore:</strong> AI bot runs through the site many times, trying different permit types and inputs</li>
+        <li><strong>Build map:</strong> AI combines all those runs into a JSON config (the "sitemap")</li>
+        <li><strong>Human review:</strong> A person checks the map using a visual tool (~15 min)</li>
+        <li><strong>Fill permits:</strong> Simple bot follows the map page by page, no thinking</li>
+        <li><strong>Verify:</strong> After filling each page, reads back what was entered and confirms it's correct</li>
+        <li><strong>Detect changes:</strong> Checks nightly if the website changed. If yes, re-explores automatically</li>
+      </ol>
+      <p style="margin-top:10px;font-size:.82rem;color:var(--muted);"><strong>Key strength:</strong> Most thorough &mdash; handles popups, branching logic, website changes. <br><strong>Key gap:</strong> Expensive to explore. No smart data model. No real-time gap-check with the user.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════ 3. DEEP DIVE — ALL THREE APPROACHES (GAPS FILLED) ═══════════════════ -->
+<div class="section">
+  <div class="section-header"><div class="section-num">3</div><h2>Deep Dive — Each Approach Fully Explained</h2></div>
+  <p style="color:var(--muted);margin-bottom:8px;font-size:.9rem;">Each approach answered the same 5 questions. Where the original doc left gaps, we filled them in and called them out.</p>
+  <p style="color:var(--muted);margin-bottom:28px;font-size:.85rem;">Every flow shows <strong>four lifecycles</strong>: <span style="color:var(--accent1);">how we learn the website</span>, <span style="color:var(--accent3);">how we collect contractor data</span>, <span style="color:var(--green);">how we fill the form</span>, and <span style="color:var(--red);">how we handle updates when things change</span>.</p>
+
+  <!-- ╔══════════════════════════════════════════════════════════╗ -->
+  <!-- ║  OPTION 1 — THE COMPILER                                ║ -->
+  <!-- ╚══════════════════════════════════════════════════════════╝ -->
+  <div class="info-box" style="margin-bottom:40px;border-left:4px solid var(--accent1);">
+    <h3 style="color:var(--accent1);margin-bottom:4px;font-size:1.1rem;"><span class="tag tag-opt1">OPT 1</span> The Compiler — Full Deep Dive</h3>
+    <p style="color:var(--muted);margin-bottom:20px;font-size:.85rem;">Core idea: Permit data is organized once, city websites are just "compilation targets."</p>
+
+    <!-- Q1 -->
+    <h4 style="color:var(--accent1);margin-bottom:8px;">How do we learn the website?</h4>
+    <p style="font-size:.88rem;margin-bottom:12px;">A <strong>human manually walks through</strong> the city's permit portal (2-4 hours). They record every page, field, dropdown, and popup. Then a human + AI build a JSON "config file" mapping each website field to our data model. Each field gets classified: auto-fillable, safe default, needs contractor input, obsolete, or risky. Finally, an engineer writes the navigation sequence (which buttons to click, waits, popup handling).</p>
+    <div style="background:rgba(239,68,68,.06);border-radius:6px;padding:10px 14px;margin-bottom:16px;font-size:.82rem;color:var(--red);">
+      <strong>Gap:</strong> This is ~10-15 hours per city, entirely manual. The doc says "onboarding cost drops sharply" but has no automation mechanism. At 1,000 cities, that's 3,000+ hours of human work.
+    </div>
+
+    <!-- Q2 -->
+    <h4 style="color:var(--accent1);margin-bottom:8px;">How do we collect contractor data?</h4>
+    <p style="font-size:.88rem;margin-bottom:12px;">Chat agent asks intent-based questions drawn from a <strong>3-layer data model</strong>: Layer A (universal — address, work type, contractor) is always asked. Layer B (trade-specific — roof material, BTU rating) activates based on work type. Layer C (city-specific oddities) is asked only when the config flags it. System auto-resolves address → parcel number, zoning, jurisdiction via GIS and assessor databases.</p>
+    <div style="background:rgba(16,185,129,.06);border-radius:6px;padding:10px 14px;margin-bottom:16px;font-size:.82rem;color:var(--green);">
+      <strong>Strength:</strong> Best data model of all three. Field classification means the bot knows "fax number" = put N/A, "hazardous materials" = must ask contractor. Address auto-lookup prevents a top cause of permit rejections.
+    </div>
+
+    <!-- Q3 -->
+    <h4 style="color:var(--accent1);margin-bottom:8px;">How do we fill the form?</h4>
+    <p style="font-size:.88rem;margin-bottom:12px;">System loads the city config, plugs contractor data into the field mappings (with format transforms like uppercase, currency), and generates a step-by-step fill plan. A Playwright bot follows the plan: fill field → click next → fill field → click next. If it encounters an unknown field, it classifies it on the fly: if safe → auto-fill, if risky → pause and ask contractor.</p>
+    <div style="background:rgba(239,68,68,.06);border-radius:6px;padding:10px 14px;margin-bottom:16px;font-size:.82rem;color:var(--red);">
+      <strong>Gap:</strong> No detail on handling popups, nested "Add Owner" sections, or dropdowns that change what appears next. The "execution plan compiler" is described in 4 bullet points with no pseudocode or error handling.
+    </div>
+
+    <!-- Q4 -->
+    <h4 style="color:var(--accent1);margin-bottom:8px;">How do we know it worked?</h4>
+    <p style="font-size:.88rem;margin-bottom:12px;">A "Checker" bot reads back every field value from the website and compares it to the intended value. Mismatches trigger retries. Persistent failures trigger a human alert.</p>
+    <div style="background:rgba(99,102,241,.06);border-radius:6px;padding:10px 14px;margin-bottom:16px;font-size:.82rem;">Good concept, but high-level. No per-page verification, no screenshot backup, no vision model second opinion.</div>
+
+    <!-- Q5 -->
+    <h4 style="color:var(--accent1);margin-bottom:8px;">How do we handle website changes?</h4>
+    <div style="background:rgba(239,68,68,.06);border-radius:6px;padding:10px 14px;margin-bottom:16px;font-size:.82rem;color:var(--red);">
+      <strong>Not addressed at all.</strong> No change detection, no nightly checks, no self-healing. When a city redesigns their portal, the config silently breaks. You only find out when a real permit fails. This is the biggest operational risk.
+    </div>
+
+    <!-- OPTION 1 FULL FLOW -->
+    <h4 style="color:var(--accent1);margin:20px 0 12px;">Complete Flow — Option 1</h4>
+
+    <p style="color:var(--accent1);font-size:.78rem;margin-bottom:10px;font-weight:600;">PHASE 1: LEARN THE WEBSITE (once per city, manual, ~10-15 hrs)</p>
+
+    <div class="flow-step step-learn" style="margin-bottom:4px;">
+      <div class="flow-actor">Human (2-4 hrs)</div>
+      <div class="flow-box">
+        <h4>1. Walk Through the Portal</h4>
+        <p>Ops person opens the city's website, starts a test application for each permit type, and records every page, field, dropdown, popup, and branching path.</p>
+      </div>
+      <div class="flow-io">
+        <div><span class="io-label io-in">In:</span> Website URL</div>
+        <div><span class="io-label io-out">Out:</span> Field inventory + screenshots</div>
+      </div>
+    </div>
+    <div class="flow-connector"><div class="arrow-line"></div></div>
+    <div class="flow-step step-learn" style="margin-bottom:4px;">
+      <div class="flow-actor">Human + AI (3-4 hrs)</div>
+      <div class="flow-box">
+        <h4>2. Build Config + Classify Fields + Write Navigation</h4>
+        <p>Map each website field to our data model. Tag each field's intent (auto-fillable, default, risky, obsolete). Write the page-by-page navigation sequence. AI proposes mappings from HTML, human reviews.</p>
+      </div>
+      <div class="flow-io">
+        <div><span class="io-label io-in">In:</span> Inventory + data model</div>
+        <div><span class="io-label io-out">Out:</span> Complete city config (JSON)</div>
+      </div>
+    </div>
+    <div class="flow-connector"><div class="arrow-line"></div></div>
+    <div class="flow-step step-check" style="margin-bottom:4px;">
+      <div class="flow-actor">Bot + Human (2-3 hrs)</div>
+      <div class="flow-box">
+        <h4>3. Test Until 5 Clean Runs</h4>
+        <p>Run test permits, watch where the bot fails, fix the config, repeat. Lock the config after 5 consecutive clean fills.</p>
+      </div>
+      <div class="flow-io">
+        <div><span class="io-label io-in">In:</span> Config + test data</div>
+        <div><span class="io-label io-out">Out:</span> Validated, locked config</div>
+      </div>
+    </div>
+
+    <p style="color:var(--accent3);font-size:.78rem;margin:16px 0 10px;font-weight:600;">PHASE 2: COLLECT CONTRACTOR DATA (per permit, ~2-3 min)</p>
+
+    <div class="flow-step step-user" style="margin-bottom:4px;">
+      <div class="flow-actor">Contractor</div>
+      <div class="flow-box">
+        <h4>4. Contractor Answers Questions</h4>
+        <p>Chat agent collects: what work, where, who. Layer A (always), Layer B (based on trade). System auto-resolves address → parcel, zoning, jurisdiction.</p>
+      </div>
+      <div class="flow-io">
+        <div><span class="io-label io-in">In:</span> Contractor's project knowledge</div>
+        <div><span class="io-label io-out">Out:</span> Structured permit data</div>
+      </div>
+    </div>
+
+    <p style="color:var(--green);font-size:.78rem;margin:16px 0 10px;font-weight:600;">PHASE 3: FILL THE FORM (per permit, ~5-10 min, no AI)</p>
+
+    <div class="flow-step step-run" style="margin-bottom:4px;">
+      <div class="flow-actor">System (instant)</div>
+      <div class="flow-box">
+        <h4>5. Compile: Data + Config → Fill Plan</h4>
+        <p>Loads city config, plugs contractor data into field mappings, applies format transforms. Produces a step-by-step instruction list. No AI — just a lookup table.</p>
+      </div>
+      <div class="flow-io">
+        <div><span class="io-label io-in">In:</span> Permit data + city config</div>
+        <div><span class="io-label io-out">Out:</span> Step-by-step fill plan</div>
+      </div>
+    </div>
+    <div class="flow-connector"><div class="arrow-line"></div></div>
+    <div class="flow-step step-run" style="margin-bottom:4px;">
+      <div class="flow-actor">Bot (no AI)</div>
+      <div class="flow-box">
+        <h4>6. Bot Follows the Fill Plan</h4>
+        <p>Opens site, logs in, follows plan page by page. Unknown fields get classified on-the-fly: safe → auto-fill, risky → pause and ask contractor.</p>
+      </div>
+      <div class="flow-io">
+        <div><span class="io-label io-in">In:</span> Fill plan</div>
+        <div><span class="io-label io-out">Out:</span> Filled form</div>
+      </div>
+    </div>
+    <div class="flow-connector"><div class="arrow-line"></div></div>
+    <div class="flow-step step-check" style="margin-bottom:4px;">
+      <div class="flow-actor">Checker Bot</div>
+      <div class="flow-box">
+        <h4>7. Verify & Submit</h4>
+        <p>Reads back field values from the website. Compares to intended. Match → submit. Mismatch → retry. Still failing → flag human.</p>
+      </div>
+      <div class="flow-io">
+        <div><span class="io-label io-in">In:</span> Filled form + expected values</div>
+        <div><span class="io-label io-out">Out:</span> Submitted permit or escalation</div>
+      </div>
+    </div>
+
+    <p style="color:var(--red);font-size:.78rem;margin:16px 0 10px;font-weight:600;">PHASE 4: HANDLE CHANGES (ongoing — NOT ADDRESSED IN DOC)</p>
+
+    <div class="flow-step step-fix" style="margin-bottom:4px;">
+      <div class="flow-actor" style="color:var(--red);">Nobody!</div>
+      <div class="flow-box" style="border-left-color:var(--red);">
+        <h4 style="color:var(--red);">8. ??? No Change Detection ???</h4>
+        <p>No nightly checks. No auto-recovery. Configs break silently when websites change. You find out when a real permit fails. <strong>Biggest operational risk.</strong></p>
+      </div>
+      <div class="flow-io">
+        <div style="color:var(--red);font-size:.82rem;font-weight:600;">Critical gap</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ╔══════════════════════════════════════════════════════════╗ -->
+  <!-- ║  OPTION 2 — THE QUICK MAPPER                            ║ -->
+  <!-- ╚══════════════════════════════════════════════════════════╝ -->
+  <div class="info-box" style="margin-bottom:40px;border-left:4px solid var(--accent3);">
+    <h3 style="color:var(--accent3);margin-bottom:4px;font-size:1.1rem;"><span class="tag tag-opt2">OPT 2</span> The Quick Mapper — Full Deep Dive</h3>
+    <p style="color:var(--muted);margin-bottom:20px;font-size:.85rem;">Core idea: Learn a page the first time you see it, lock the mapping, reuse forever. Meanwhile, the contractor's session is 2 minutes — the bot fills in background.</p>
+
+    <!-- Q1 -->
+    <h4 style="color:var(--accent3);margin-bottom:8px;">How do we learn the website?</h4>
+    <p style="font-size:.88rem;margin-bottom:12px;">There's <strong>no upfront exploration</strong>. Learning happens on-the-fly. When the bot hits a page it hasn't seen before, it "fingerprints" the page (a hash based on the form fields present). It then sends the page HTML + our data fields to AI, which proposes a mapping: "their #txt_sqft → our project_sqft." A human reviews and confirms the mapping once. From then on, any time the bot lands on a page with that same fingerprint, it uses the saved mapping — no AI needed.</p>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:10px;margin-bottom:12px;">
+      <div style="background:rgba(16,185,129,.06);border-radius:6px;padding:10px 14px;font-size:.82rem;">
+        <strong style="color:var(--green);">Strength:</strong> No heavy upfront investment. You can start filling permits for a new city immediately. The system learns as it goes. Over time, new unknown pages become rarer.
+      </div>
+      <div style="background:rgba(239,68,68,.06);border-radius:6px;padding:10px 14px;font-size:.82rem;">
+        <strong style="color:var(--red);">Gap:</strong> The fingerprint is fragile. A cookie banner, a font change, or an A/B test changes the hash, triggering unnecessary re-mapping. Also: if a dropdown on Page 2 changes what shows on Page 3, the fingerprint model doesn't capture that dependency. Each page is treated independently.
+      </div>
+    </div>
+
+    <!-- Q2 -->
+    <h4 style="color:var(--accent3);margin-bottom:8px;">How do we collect contractor data?</h4>
+    <p style="font-size:.88rem;margin-bottom:12px;">Chat agent collects basic info. But the unique part: <strong>while the user is chatting, a Scout bot opens the actual city website in the background</strong> (60-90 seconds). The scout navigates to the right form and scans what fields are required for this specific permit type. If the form requires something we didn't ask yet (e.g., "cabinet count"), the agent asks the contractor immediately. The contractor answers, and their session ends within 2-3 minutes.</p>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:10px;margin-bottom:12px;">
+      <div style="background:rgba(16,185,129,.06);border-radius:6px;padding:10px 14px;font-size:.82rem;">
+        <strong style="color:var(--green);">Strength:</strong> Best contractor experience. No irrelevant questions. Only asks exactly what this specific form needs. Contractor is done in 2 minutes.
+      </div>
+      <div style="background:rgba(239,68,68,.06);border-radius:6px;padding:10px 14px;font-size:.82rem;">
+        <strong style="color:var(--red);">Gap:</strong> Scouting in 60 seconds assumes fast government websites. Many are slow, require logins, or have CAPTCHAs. The "Magic Window" breaks if the portal takes 3 minutes to load. Also: no address auto-resolution (parcel, zoning) — the doc doesn't mention this at all.
+      </div>
+    </div>
+
+    <!-- Q3 -->
+    <h4 style="color:var(--accent3);margin-bottom:8px;">How do we fill the form?</h4>
+    <p style="font-size:.88rem;margin-bottom:12px;"><strong>Asynchronously in the background.</strong> The contractor is gone. A worker bot loads the saved page maps from the database and fills the form page by page. For each page: check fingerprint → load mapping → fill fields → click next. If a page fingerprint is unknown, it pauses, sends the HTML to AI for mapping, and queues for human confirmation before proceeding.</p>
+    <div style="background:rgba(239,68,68,.06);border-radius:6px;padding:10px 14px;margin-bottom:12px;font-size:.82rem;color:var(--red);">
+      <strong>Gap:</strong> No handling for popups, nested "Add Owner" sections, or repeatable form sections. If the form has an "Add Another Contractor" button that opens a modal, the fingerprint model doesn't account for this. The bot would need separate logic for modals, which isn't described.
+    </div>
+
+    <!-- Q4 -->
+    <h4 style="color:var(--accent3);margin-bottom:8px;">How do we know it worked?</h4>
+    <p style="font-size:.88rem;margin-bottom:12px;">Bot pauses at the "Review Application" summary page before hitting Submit. It scrapes the summary and compares each value to what the contractor provided.</p>
+    <div style="background:rgba(239,68,68,.06);border-radius:6px;padding:10px 14px;margin-bottom:12px;font-size:.82rem;color:var(--red);">
+      <strong>Gap:</strong> Only checks the final summary page. Real errors happen mid-fill (page 3 of 6) and may not show on the summary. No per-page verification, no screenshot evidence, no vision model backup. If a field was silently truncated or a dropdown defaulted wrong on an earlier page, this check misses it.
+    </div>
+
+    <!-- Q5 -->
+    <h4 style="color:var(--accent3);margin-bottom:8px;">How do we handle website changes?</h4>
+    <div style="background:rgba(239,68,68,.06);border-radius:6px;padding:10px 14px;margin-bottom:16px;font-size:.82rem;color:var(--red);">
+      <strong>Not addressed.</strong> If a city redesigns their form, old fingerprints won't match, so the bot would treat every page as "new" and trigger AI re-mapping + human review — but there's no proactive detection. No nightly checks. You only find out when a real permit triggers it. If the redesign is subtle (same fields, different layout), the fingerprint changes but the mapping might still be correct — wasting human review time on false alarms.
+    </div>
+
+    <!-- OPTION 2 FULL FLOW -->
+    <h4 style="color:var(--accent3);margin:20px 0 12px;">Complete Flow — Option 2</h4>
+
+    <p style="color:var(--accent3);font-size:.78rem;margin-bottom:10px;font-weight:600;">PHASE 1: LEARN THE WEBSITE (on-the-fly, during first real permit)</p>
+
+    <div class="flow-step step-learn" style="margin-bottom:4px;">
+      <div class="flow-actor">Bot + AI (auto)</div>
+      <div class="flow-box">
+        <h4>1. First Encounter — AI Maps the Page</h4>
+        <p>Bot lands on a page with no saved mapping. It fingerprints the page (hash of form fields). Sends HTML + our data model to AI. AI proposes: "their #est_cost → our valuation (format as currency)." Result is queued for human review.</p>
+      </div>
+      <div class="flow-io">
+        <div><span class="io-label io-in">In:</span> Unknown page HTML</div>
+        <div><span class="io-label io-out">Out:</span> Proposed field mapping</div>
+      </div>
+    </div>
+    <div class="flow-connector"><div class="arrow-line"></div></div>
+    <div class="flow-step step-user" style="margin-bottom:4px;">
+      <div class="flow-actor">Human (2 min)</div>
+      <div class="flow-box">
+        <h4>2. Human Confirms the Mapping</h4>
+        <p>Ops person sees a screenshot: "Bot wants to map 'Est. Value' → 'Project Valuation'. Confirm?" One click to approve. Mapping is saved to the database — this page fingerprint is now "solved" forever.</p>
+      </div>
+      <div class="flow-io">
+        <div><span class="io-label io-in">In:</span> Proposed mapping + screenshot</div>
+        <div><span class="io-label io-out">Out:</span> Locked page map in DB</div>
+      </div>
+    </div>
+
+    <p style="color:var(--accent3);font-size:.78rem;margin:16px 0 10px;font-weight:600;">PHASE 2: COLLECT CONTRACTOR DATA (per permit, ~2 min)</p>
+
+    <div class="flow-step step-user" style="margin-bottom:4px;">
+      <div class="flow-actor">Contractor</div>
+      <div class="flow-box">
+        <h4>3. Quick Chat + Real-Time Scout</h4>
+        <p>Contractor starts chatting ("kitchen remodel in Austin"). Meanwhile, a scout bot opens the city portal in the background, navigates to the right form, and scans what fields are required.</p>
+      </div>
+      <div class="flow-io">
+        <div><span class="io-label io-in">In:</span> Contractor's request</div>
+        <div><span class="io-label io-out">Out:</span> Basic info + scout results</div>
+      </div>
+    </div>
+    <div class="flow-connector"><div class="arrow-line"></div></div>
+    <div class="flow-step step-user" style="margin-bottom:4px;">
+      <div class="flow-actor">Contractor</div>
+      <div class="flow-box">
+        <h4>4. Fill the Gaps</h4>
+        <p>"Found it! We just need one more thing: how many cabinets?" Contractor answers. Their session ends. They get a "we'll text you when it's done" message.</p>
+      </div>
+      <div class="flow-io">
+        <div><span class="io-label io-in">In:</span> Gap questions from scout</div>
+        <div><span class="io-label io-out">Out:</span> Complete data set</div>
+      </div>
+    </div>
+
+    <p style="color:var(--green);font-size:.78rem;margin:16px 0 10px;font-weight:600;">PHASE 3: FILL THE FORM (background, async, contractor is gone)</p>
+
+    <div class="flow-step step-run" style="margin-bottom:4px;">
+      <div class="flow-actor">Worker Bot (background)</div>
+      <div class="flow-box">
+        <h4>5. Fill Page by Page</h4>
+        <p>Loads saved page maps from DB. For each page: calculate fingerprint → load mapping → fill fields → click next. If unknown page → pause, send to AI + human. The contractor is notified only if the bot gets completely stuck.</p>
+      </div>
+      <div class="flow-io">
+        <div><span class="io-label io-in">In:</span> Complete data + page maps</div>
+        <div><span class="io-label io-out">Out:</span> Filled application</div>
+      </div>
+    </div>
+    <div class="flow-connector"><div class="arrow-line"></div></div>
+    <div class="flow-step step-check" style="margin-bottom:4px;">
+      <div class="flow-actor">QA Check</div>
+      <div class="flow-box">
+        <h4>6. Summary Page Check</h4>
+        <p>Bot pauses at the "Review Application" summary. Scrapes values and compares to contractor's data. Match → submit. Mismatch → abort and alert ops.</p>
+      </div>
+      <div class="flow-io">
+        <div><span class="io-label io-in">In:</span> Summary page + expected data</div>
+        <div><span class="io-label io-out">Out:</span> Submitted permit or alert</div>
+      </div>
+    </div>
+
+    <p style="color:var(--red);font-size:.78rem;margin:16px 0 10px;font-weight:600;">PHASE 4: HANDLE CHANGES (NOT ADDRESSED IN DOC)</p>
+
+    <div class="flow-step step-fix" style="margin-bottom:4px;">
+      <div class="flow-actor" style="color:var(--red);">Nobody!</div>
+      <div class="flow-box" style="border-left-color:var(--red);">
+        <h4 style="color:var(--red);">7. ??? No Proactive Change Detection ???</h4>
+        <p>If the website changes, fingerprints won't match → bot treats pages as "new" → triggers AI + human mapping again. But this only happens reactively during a real permit. No nightly checks. Subtle changes (same fields, different layout) cause false alarms. Major changes cause real failures with no warning.</p>
+      </div>
+      <div class="flow-io">
+        <div style="color:var(--red);font-size:.82rem;font-weight:600;">Critical gap</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ╔══════════════════════════════════════════════════════════╗ -->
+  <!-- ║  OPTION 3 — THE EXPLORER                                ║ -->
+  <!-- ╚══════════════════════════════════════════════════════════╝ -->
+  <div class="info-box" style="margin-bottom:0;border-left:4px solid var(--accent2);">
+    <h3 style="color:var(--accent2);margin-bottom:4px;font-size:1.1rem;"><span class="tag tag-opt3">OPT 3</span> The Explorer — Full Deep Dive</h3>
+    <p style="color:var(--muted);margin-bottom:20px;font-size:.85rem;">Core idea: AI deeply maps the form once. A human reviews the map. A bot blindly follows the map forever. Nightly checks keep it accurate.</p>
+
+    <!-- Q1 -->
+    <h4 style="color:var(--accent2);margin-bottom:8px;">How do we learn the website?</h4>
+    <p style="font-size:.88rem;margin-bottom:12px;">An <strong>AI "explorer" bot runs through the website 10+ times</strong> with different inputs. Each run varies permit type, property type, and dropdown selections to discover every possible path. The bot records everything: pages, fields, selectors, button clicks, modals, network requests. Then AI synthesizes all recordings into one master map (JSON) that describes every page, every field, every branching condition. A human reviews the map through a visual flowchart tool (~15 minutes).</p>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:10px;margin-bottom:12px;">
+      <div style="background:rgba(16,185,129,.06);border-radius:6px;padding:10px 14px;font-size:.82rem;">
+        <strong style="color:var(--green);">Strength:</strong> Most thorough learning. Discovers conditional branches (dropdown A changes Page 3), nested popups (modal inside modal), and repeatable sections ("Add Another"). The map includes backup selectors, explicit waits, and format transforms. Human review takes 15 min, not 15 hours.
+      </div>
+      <div style="background:rgba(239,68,68,.06);border-radius:6px;padding:10px 14px;font-size:.82rem;">
+        <strong style="color:var(--red);">Gap:</strong> Exploration is expensive: 10 runs × 5 permit types × 1,000 cities = 50,000 AI-powered browser sessions. AI synthesis quality is the big bet — if it misinterprets a modal or misses a branch, the map is wrong. Also doesn't leverage vendor clustering (Accela, Tyler) — each city is explored from scratch even if the software is identical.
+      </div>
+    </div>
+
+    <!-- Q2 -->
+    <h4 style="color:var(--accent2);margin-bottom:8px;">How do we collect contractor data?</h4>
+    <p style="font-size:.88rem;margin-bottom:12px;">A conversational agent collects contractor info, property details, and work specifics. Auto-detects jurisdiction from address. Collects the universal basics first, then jurisdiction-specific questions. Shows a pre-submission review screen.</p>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:10px;margin-bottom:12px;">
+      <div style="background:rgba(99,102,241,.06);border-radius:6px;padding:10px 14px;font-size:.82rem;">
+        Good but not as sophisticated as Option 1. No layered schema, no field intent classification. The data model is solid but flat.
+      </div>
+      <div style="background:rgba(239,68,68,.06);border-radius:6px;padding:10px 14px;font-size:.82rem;">
+        <strong style="color:var(--red);">Gap:</strong> No real-time gap check. If the form requires data not in the model (a rare city-specific field), there's no mechanism to ask the contractor before their session ends. Also: address auto-resolution (parcel, zoning) is mentioned but not designed.
+      </div>
+    </div>
+
+    <!-- Q3 -->
+    <h4 style="color:var(--accent2);margin-bottom:8px;">How do we fill the form?</h4>
+    <p style="font-size:.88rem;margin-bottom:12px;">A Playwright bot takes two inputs: the master map + contractor data. It follows the map page by page: navigate to URL, wait for page load, fill each field using the mapped selector, apply transforms (uppercase, currency), handle nested forms recursively (click "Add Owner", fill modal fields, save, close). Each field has backup selectors — if <code>#apn-field</code> fails, try <code>[name='apn']</code>, then an XPath. <strong>Zero AI at runtime.</strong></p>
+    <div style="background:rgba(16,185,129,.06);border-radius:6px;padding:10px 14px;margin-bottom:12px;font-size:.82rem;color:var(--green);">
+      <strong>Strongest execution engine.</strong> Full pseudocode provided. Handles nested modals, repeatable sections, conditional branches, selector fallbacks, explicit waits (URL change, modal close, element visibility). No sleep() calls. No guessing.
+    </div>
+
+    <!-- Q4 -->
+    <h4 style="color:var(--accent2);margin-bottom:8px;">How do we know it worked?</h4>
+    <p style="font-size:.88rem;margin-bottom:12px;"><strong>Two-layer verification.</strong> Layer 1: After filling each page (not just the summary), the system reads back every field value from the page and compares to expected. Layer 2 (optional): Takes a screenshot and sends it to a lightweight vision AI that checks the visual state matches expectations. This catches edge cases like visually-hidden fields or validation errors the bot didn't notice.</p>
+    <div style="background:rgba(16,185,129,.06);border-radius:6px;padding:10px 14px;margin-bottom:12px;font-size:.82rem;color:var(--green);">
+      <strong>Best verification of all three.</strong> Per-page checking (not just summary). Two independent verification channels. Clear retry logic: mismatch → re-fill → verify again → if still fails → flag human.
+    </div>
+
+    <!-- Q5 -->
+    <h4 style="color:var(--accent2);margin-bottom:8px;">How do we handle website changes?</h4>
+    <p style="font-size:.88rem;margin-bottom:12px;"><strong>Three detection layers.</strong> 1) Every real permit fill checks the page structure against the stored map fingerprint. If it doesn't match, the website changed. 2) Nightly regression runs test a rotating sample of jurisdictions. 3) Failure rate spikes per jurisdiction trigger automatic alerts. When a change is detected: auto re-explore (10 runs) → AI synthesizes new map → auto-validate with test fill → if pass, replace old map → if fail, queue for human review.</p>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:10px;margin-bottom:12px;">
+      <div style="background:rgba(16,185,129,.06);border-radius:6px;padding:10px 14px;font-size:.82rem;">
+        <strong style="color:var(--green);">Only approach that addresses this.</strong> SLA target: most changes auto-recovered within 2 hours.
+      </div>
+      <div style="background:rgba(239,68,68,.06);border-radius:6px;padding:10px 14px;font-size:.82rem;">
+        <strong style="color:var(--red);">Gap:</strong> Nightly checks against all 500 jurisdictions = 500 browser sessions per night. Expensive. (Recommendation: sample 20% per night on rotation, since every real fill also checks.)
+      </div>
+    </div>
+
+    <!-- OPTION 3 FULL FLOW -->
+    <h4 style="color:var(--accent2);margin:20px 0 12px;">Complete Flow — Option 3</h4>
+
+    <p style="color:var(--accent2);font-size:.78rem;margin-bottom:10px;font-weight:600;">PHASE 1: LEARN THE WEBSITE (once per city, AI-automated, ~30 min + 15 min human review)</p>
+
+    <div class="flow-step step-learn" style="margin-bottom:4px;">
+      <div class="flow-actor">AI Explorer Bot</div>
+      <div class="flow-box">
+        <h4>1. Explore the Portal (10+ runs)</h4>
+        <p>AI bot runs through the city website 10+ times with different inputs. Each run: navigate pages, fill fields with test data, click every button, open every modal, intercept network requests. Records everything.</p>
+      </div>
+      <div class="flow-io">
+        <div><span class="io-label io-in">In:</span> Website URL + test data combos</div>
+        <div><span class="io-label io-out">Out:</span> 10+ full session recordings</div>
+      </div>
+    </div>
+    <div class="flow-connector"><div class="arrow-line"></div></div>
+    <div class="flow-step step-learn" style="margin-bottom:4px;">
+      <div class="flow-actor">AI (one-time)</div>
+      <div class="flow-box">
+        <h4>2. Synthesize into Master Map</h4>
+        <p>AI reads all recordings and produces one JSON map: every page in order, every field + selector + backup selectors, every branching condition, every nested form trigger, every wait instruction. Flags inconsistencies between runs.</p>
+      </div>
+      <div class="flow-io">
+        <div><span class="io-label io-in">In:</span> 10 recorded sessions</div>
+        <div><span class="io-label io-out">Out:</span> Draft master map (JSON)</div>
+      </div>
+    </div>
+    <div class="flow-connector"><div class="arrow-line"></div></div>
+    <div class="flow-step step-user" style="margin-bottom:4px;">
+      <div class="flow-actor">Ops Person (15 min)</div>
+      <div class="flow-box">
+        <h4>3. Human Reviews via Visual Tool</h4>
+        <p>Opens flowchart UI showing each page as a card, fields listed, arrows between pages, decision diamonds for branches, expandable sub-cards for nested forms. Reviewer checks flow logic, fixes mappings with a click. Approves.</p>
+      </div>
+      <div class="flow-io">
+        <div><span class="io-label io-in">In:</span> Draft map + review tool</div>
+        <div><span class="io-label io-out">Out:</span> Approved master map</div>
+      </div>
+    </div>
+
+    <p style="color:var(--accent3);font-size:.78rem;margin:16px 0 10px;font-weight:600;">PHASE 2: COLLECT CONTRACTOR DATA (per permit, ~3-5 min)</p>
+
+    <div class="flow-step step-user" style="margin-bottom:4px;">
+      <div class="flow-actor">Contractor</div>
+      <div class="flow-box">
+        <h4>4. Conversational Intake</h4>
+        <p>Chat agent collects: basic info → auto-detect jurisdiction → project-specific details → property & owner info. Shows pre-submission review. Contractor confirms.</p>
+      </div>
+      <div class="flow-io">
+        <div><span class="io-label io-in">In:</span> Contractor's project knowledge</div>
+        <div><span class="io-label io-out">Out:</span> Complete permit data</div>
+      </div>
+    </div>
+
+    <p style="color:var(--green);font-size:.78rem;margin:16px 0 10px;font-weight:600;">PHASE 3: FILL THE FORM (per permit, ~3-5 min, zero AI)</p>
+
+    <div class="flow-step step-run" style="margin-bottom:4px;">
+      <div class="flow-actor">Playwright Bot (no AI)</div>
+      <div class="flow-box">
+        <h4>5. Follow the Map Page by Page</h4>
+        <p>For each page: wait for URL match → fill all direct fields (selector → value + transform) → handle nested forms recursively (click trigger → wait for modal → fill fields → save → close) → click Next → wait for transition. Backup selectors if primary fails.</p>
+      </div>
+      <div class="flow-io">
+        <div><span class="io-label io-in">In:</span> Approved map + permit data</div>
+        <div><span class="io-label io-out">Out:</span> Filled form (per page)</div>
+      </div>
+    </div>
+    <div class="flow-connector"><div class="arrow-line"></div></div>
+    <div class="flow-step step-check" style="margin-bottom:4px;">
+      <div class="flow-actor">Verifier (auto)</div>
+      <div class="flow-box">
+        <h4>6. Per-Page Verification + Screenshot</h4>
+        <p>After each page: read back all field values from the page → compare to expected → take screenshot → optionally send to vision AI for visual check. Produces pass/fail per field. Mismatch → clear + re-fill + re-verify. Two failures → flag for human.</p>
+      </div>
+      <div class="flow-io">
+        <div><span class="io-label io-in">In:</span> Filled page + expected values</div>
+        <div><span class="io-label io-out">Out:</span> Verified page or escalation</div>
+      </div>
+    </div>
+
+    <p style="color:var(--red);font-size:.78rem;margin:16px 0 10px;font-weight:600;">PHASE 4: HANDLE CHANGES (continuous, automated)</p>
+
+    <div class="flow-step step-fix" style="margin-bottom:4px;">
+      <div class="flow-actor">System (always-on)</div>
+      <div class="flow-box">
+        <h4>7. Detect Changes on Every Fill</h4>
+        <p>Every real permit fill compares page structure fingerprint against the stored map. If mismatch detected → flag jurisdiction as "drift detected."</p>
+      </div>
+      <div class="flow-io">
+        <div><span class="io-label io-in">In:</span> Live page vs stored fingerprint</div>
+        <div><span class="io-label io-out">Out:</span> Match or drift flag</div>
+      </div>
+    </div>
+    <div class="flow-connector"><div class="arrow-line"></div></div>
+    <div class="flow-step step-fix" style="margin-bottom:4px;">
+      <div class="flow-actor">System (nightly)</div>
+      <div class="flow-box">
+        <h4>8. Nightly Regression + Auto-Heal</h4>
+        <p>Each night, test a rotating 20% of jurisdictions. If drift confirmed: auto re-explore (10 runs) → AI synthesizes new map → test fill to validate → if pass, swap map. If fail, pause new permits for this city and alert ops.</p>
+      </div>
+      <div class="flow-io">
+        <div><span class="io-label io-in">In:</span> Drift flag or nightly schedule</div>
+        <div><span class="io-label io-out">Out:</span> Updated map or ops alert</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════ 4. STRENGTHS & LOOPHOLES (UPDATED AFTER DEEP DIVES) ═══════════════════ -->
+<div class="section">
+  <div class="section-header"><div class="section-num">4</div><h2>What's Strong & What's Missing (Updated After Deep Dives)</h2></div>
+  <p style="color:var(--muted);margin-bottom:24px;font-size:.88rem;">Now that we've fully fleshed out each approach — filling in their gaps and stress-testing their claims — here's the revised analysis. Some gaps from the original docs remain, and the deep dives exposed new ones.</p>
+
+  <!-- OPT 1 -->
+  <h3 style="margin-bottom:12px;"><span class="tag tag-opt1">OPT 1</span> The Compiler</h3>
+  <div class="analysis-grid">
+    <div class="analysis-box strength">
+      <h4>What's Strong</h4>
+      <ul>
+        <li><strong>Best data architecture, by far.</strong> The 3-layer model (universal → trade-specific → city-specific) is the most reusable structure. When a new city is added, 70-80% of fields already exist in Layers A and B. Only the city-specific oddities (Layer C) need new work.</li>
+        <li><strong>Field intent classification is unique.</strong> Knowing that "fax number" = legacy (auto N/A), "zoning" = derivable (auto-lookup), "hazardous materials" = risky (must ask contractor) prevents entire categories of errors. No other approach has this.</li>
+        <li><strong>Address auto-resolution is fully designed.</strong> County assessor data → GIS parcel databases → commercial APIs → authoritative record (parcel, zoning, jurisdiction). This eliminates a top cause of real-world permit rejections.</li>
+        <li><strong>Graceful unknowns.</strong> When the bot encounters a field not in the config, it doesn't crash — it classifies the field's intent on the fly and responds accordingly. This makes the system resilient to minor site changes.</li>
+        <li><strong>Cheapest per-permit operating cost.</strong> No AI at fill time. Config lookup + simple code + field transforms. The cost per permit is essentially just Playwright compute time.</li>
+      </ul>
+    </div>
+    <div class="analysis-box loophole">
+      <h4>What's Missing</h4>
+      <ul>
+        <li><strong>City onboarding is the bottleneck.</strong> Deep dive confirms: ~10-15 hours per city, entirely manual (walk-through + config creation + testing). At 1,000 cities that's 10,000-15,000 hours. The doc claims "cost drops sharply" but provides no automation mechanism for config creation. This is the critical flaw.</li>
+        <li><strong>No change detection — the biggest operational risk.</strong> When a city redesigns their portal, the config silently breaks. No nightly checks, no fingerprinting, no alerts. You find out only when a real contractor's permit fails. This is unacceptable at scale.</li>
+        <li><strong>Execution engine is under-specified.</strong> The "fill plan compiler" is described in 4 bullet points. No pseudocode. No handling for: slow-loading pages, JavaScript-rendered content, popup modals, nested "Add Owner" sections, repeatable form sections, or selector fallbacks when elements change.</li>
+        <li><strong>No real-time gap check.</strong> If the form requires data the contractor didn't provide (a rare city-specific field), there's no mechanism to ask before their session ends. The contractor would need to be called back later.</li>
+        <li><strong>Verification is surface-level.</strong> "Checker reads back field values" — but only as a final step, not per-page. No screenshot evidence. No independent second check.</li>
+        <li><strong>Doesn't leverage vendor platforms.</strong> No concept of "City A and City B both use Accela, so reuse 80% of the config." Every city is treated as unique.</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- OPT 2 -->
+  <h3 style="margin-bottom:12px;"><span class="tag tag-opt2">OPT 2</span> The Quick Mapper</h3>
+  <div class="analysis-grid">
+    <div class="analysis-box strength">
+      <h4>What's Strong</h4>
+      <ul>
+        <li><strong>Best contractor experience, genuinely innovative.</strong> The "Magic Window" concept — scout the live form while the user chats, then ask only the exact gaps — is a real differentiator. Contractor session is ~2 minutes. No irrelevant questions. No waiting.</li>
+        <li><strong>Async filling decouples user time from bot time.</strong> Contractor leaves after 2 min. Bot fills the form carefully over 10-15 min in the background. User gets a text when done. This is the right UX for the problem.</li>
+        <li><strong>Lowest startup cost.</strong> No upfront exploration, no manual config writing. Start filling permits immediately. Learning happens as real permits come in. You could have a working v1 for one city in 2-3 weeks.</li>
+        <li><strong>Smart scaling observation.</strong> "Many cities use the same backend (Accela, Tyler)." If you solve City A using Accela, City B (also Accela) reuses 80% of mappings. This is the only approach that explicitly calls out vendor platform reuse.</li>
+        <li><strong>Self-improving field library.</strong> Over time, the system learns that "sq_ft" / "sqft" / "area" all mean the same thing. New cities need less AI mapping because common patterns are already known. Heuristic matching improves with scale.</li>
+      </ul>
+    </div>
+    <div class="analysis-box loophole">
+      <h4>What's Missing</h4>
+      <ul>
+        <li><strong>Fingerprinting is fundamentally fragile.</strong> Deep dive confirms: the hash changes on cookie banners, font updates, A/B tests, ad injections, and even user-specific content. This triggers false alarms (unnecessary re-mapping) and, worse, can miss real changes (if new fields are added but the hash coincidentally stays similar). The fingerprint needs to be based strictly on form field elements, not the whole page — but this isn't specified.</li>
+        <li><strong>No handling for branching forms.</strong> If selecting "Commercial" in a dropdown reveals different fields than "Residential," the fingerprint model breaks. Each page is treated independently — but pages 3-6 may look completely different depending on a choice on page 2. No mechanism to capture these dependencies.</li>
+        <li><strong>The "60-second scout" breaks in reality.</strong> Government portals often have: slow page loads (5-10 sec each), CAPTCHA or bot detection, multi-step login, session timeouts. Scouting a full form in 60 seconds is unrealistic for many sites. The Magic Window becomes a "loading spinner" window.</li>
+        <li><strong>No nested form handling.</strong> "Add Another Contractor" modals, expandable subforms, repeatable sections — all common in permit applications, all missing from this architecture.</li>
+        <li><strong>Verification only checks the final summary.</strong> If a field on page 3 was silently truncated, or a dropdown defaulted wrong, the summary page may not show the error. Per-page verification is needed.</li>
+        <li><strong>No proactive change detection.</strong> Relies entirely on fingerprint mismatches during real permits. No nightly checks. Subtle website changes (same fields, new layout) cause false alarms. Major changes (new required fields) cause real permit failures with no warning.</li>
+        <li><strong>No data model.</strong> The data structure is "Universal Fields + Dynamic Fields" with no further detail. No field classification, no address resolution, no separation of trade-specific vs. city-specific data. This means every city's mapping starts from scratch.</li>
+        <li><strong>Privacy exposure.</strong> Sends raw HTML (potentially with other users' data) + contractor data to AI for mapping. No data scrubbing mentioned.</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- OPT 3 -->
+  <h3 style="margin-bottom:12px;"><span class="tag tag-opt3">OPT 3</span> The Explorer</h3>
+  <div class="analysis-grid">
+    <div class="analysis-box strength">
+      <h4>What's Strong</h4>
+      <ul>
+        <li><strong>Most thorough website learning.</strong> 10+ exploration runs with varied inputs systematically discovers every conditional branch, popup, nested form, and hidden field. This is the only approach that tests "what happens when I select Commercial vs. Residential" before serving real permits.</li>
+        <li><strong>Handles all form complexity.</strong> Popups, "Add Another" sections, dropdowns that change the flow, nested modals inside modals, repeatable sections — all specified with recursive handling and pseudocode. This is the real-world reality of permit forms.</li>
+        <li><strong>Only approach with change detection.</strong> Three layers: every real fill checks structure, nightly regression tests a sample, failure rate spikes trigger alerts. Auto re-explores and rebuilds maps. SLA target: most changes fixed in 2 hours. This is critical for production reliability.</li>
+        <li><strong>Strongest verification.</strong> Per-page read-back (not just summary page) + optional screenshot via vision AI. Two independent channels. Clear retry/escalation logic. Screenshot evidence for audit trails.</li>
+        <li><strong>Strongest execution engine.</strong> Full pseudocode for the Playwright bot: selector fallbacks (CSS → name → XPath), explicit waits (URL change, modal close, element visibility), format transforms, nested form recursion. No guessing.</li>
+        <li><strong>Visual review tool for ops.</strong> Map displayed as flowchart with pages as cards, fields listed, decision diamonds for branches, expandable sub-cards for nested forms. Review takes 15 min, not 15 hours of reading JSON.</li>
+        <li><strong>Concrete build plan.</strong> 13-sprint roadmap with clear milestones. Not theory — a buildable sequence.</li>
+      </ul>
+    </div>
+    <div class="analysis-box loophole">
+      <h4>What's Missing</h4>
+      <ul>
+        <li><strong>Data model is weak.</strong> Collects contractor data but with no layered structure, no field intent classification, and no concept of "this field is derivable" vs. "this field is risky." This means every unknown field requires human judgment instead of automated classification.</li>
+        <li><strong>Exploration cost is real and large.</strong> 10 runs × 5 permit types × 1,000 cities = 50,000 AI browser sessions. At ~$1-2 per session (AI tokens + compute), that's $50K-100K just for initial exploration. Plus each re-exploration when sites change. Budget this.</li>
+        <li><strong>AI synthesis quality is the riskiest bet.</strong> "Feed 10 recorded sessions to AI → get a perfect master map" is the linchpin assumption. If AI misinterprets a modal as a page transition, or misses a conditional branch, the map is wrong. Wrong map = wrong permits. The human review step is meant to catch this, but a human reviewing a 200-field map in 15 minutes might miss subtleties too.</li>
+        <li><strong>No real-time gap discovery.</strong> If the form needs data the contractor didn't provide (a city-specific field not in the data model), the system has no way to ask during the contractor's session. It discovers the gap during fill time — when the contractor is long gone. This means callbacks, delays, and frustrated contractors.</li>
+        <li><strong>No vendor platform reuse.</strong> City A and City B both use Accela? Option 3 explores each from scratch — 10 runs each. No concept of "start from an existing Accela map and check differences." This is a major missed efficiency.</li>
+        <li><strong>Nightly regression at scale is expensive.</strong> Even at 20% rotation, that's 100 browser sessions per night at 500 cities. Each session takes 5-10 min of compute. This needs to be budgeted and optimized.</li>
+        <li><strong>Address resolution is mentioned but not designed.</strong> Says "auto-detect jurisdiction from address" but no GIS integration, no assessor databases, no parcel lookup pipeline. Option 1's address resolution is fully designed; Option 3's is a placeholder.</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════ 5. HEAD-TO-HEAD (UPDATED) ═══════════════════ -->
+<div class="section">
+  <div class="section-header"><div class="section-num">5</div><h2>Side-by-Side Comparison (Revised)</h2></div>
+  <p style="color:var(--muted);margin-bottom:20px;font-size:.88rem;">Updated scoring based on the deep dives. We added 3 new dimensions that emerged as important: data privacy, city onboarding time, and what happens when data is missing mid-fill.</p>
+
+  <div class="table-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th style="width:20%;">What matters</th>
+        <th style="width:26%;">Opt 1 &mdash; Compiler</th>
+        <th style="width:26%;">Opt 2 &mdash; Quick Mapper</th>
+        <th style="width:26%;">Opt 3 &mdash; Explorer</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Data model quality</strong></td>
+        <td class="winner">Best &mdash; 3-layer schema, field classification, address pipeline</td>
+        <td class="meh">Weakest &mdash; flat "universal + dynamic" with no structure</td>
+        <td>Decent &mdash; solid but no field types or address pipeline</td>
+      </tr>
+      <tr>
+        <td><strong>How a new city is added</strong></td>
+        <td class="meh">Slowest &mdash; 10-15 hrs manual work per city</td>
+        <td>Fast &mdash; learns on-the-fly during first real permit. But fragile.</td>
+        <td class="winner">Best &mdash; automated exploration + 15 min human review</td>
+      </tr>
+      <tr>
+        <td><strong>Popups & nested forms</strong></td>
+        <td class="meh">Not addressed</td>
+        <td class="meh">Not addressed</td>
+        <td class="winner">Fully handled with recursive logic + pseudocode</td>
+      </tr>
+      <tr>
+        <td><strong>Conditional branches</strong><br><span style="font-size:.75rem;color:var(--muted);">Dropdowns that change the flow</span></td>
+        <td class="meh">Mentioned but not designed</td>
+        <td class="meh">Not addressed — each page treated independently</td>
+        <td class="winner">Tested systematically across 10+ varied runs</td>
+      </tr>
+      <tr>
+        <td><strong>Form-filling engine</strong></td>
+        <td class="meh">Vague — 4 bullet points, no pseudocode</td>
+        <td>Basic — fingerprint → lookup → fill. Works for simple forms.</td>
+        <td class="winner">Detailed — selector fallbacks, explicit waits, transforms, recursion</td>
+      </tr>
+      <tr>
+        <td><strong>Verification quality</strong></td>
+        <td>Read-back check, but only at end. No screenshots.</td>
+        <td class="meh">Summary page only — misses mid-fill errors</td>
+        <td class="winner">Per-page read-back + screenshot + optional vision AI</td>
+      </tr>
+      <tr>
+        <td><strong>Website change handling</strong></td>
+        <td class="meh">No plan. Configs break silently.</td>
+        <td class="meh">No proactive detection. Fingerprint mismatch during real permits only.</td>
+        <td class="winner">3-layer detection + auto re-explore + auto-heal. 2-hour SLA.</td>
+      </tr>
+      <tr>
+        <td><strong>Contractor experience</strong></td>
+        <td>Good — smart question flow, good interrupts</td>
+        <td class="winner">Best — 2-min chat, real-time gap check, async fill, text when done</td>
+        <td>Good — status tracking, but no real-time gap check</td>
+      </tr>
+      <tr>
+        <td><strong>What if data is missing mid-fill?</strong><br><span style="font-size:.75rem;color:var(--muted);">Form needs something we didn't ask</span></td>
+        <td>Classifies the field, auto-fills if safe, pauses if risky. But contractor may have left.</td>
+        <td class="winner">Scout catches gaps before contractor leaves. Only approach that prevents this.</td>
+        <td class="meh">No mechanism. Discovered during fill, contractor is gone. Must callback.</td>
+      </tr>
+      <tr>
+        <td><strong>Vendor platform reuse</strong><br><span style="font-size:.75rem;color:var(--muted);">Accela, Tyler, CityView</span></td>
+        <td class="meh">Not considered</td>
+        <td class="winner">Explicitly designed — crack one Accela site, reuse 80% for all Accela cities</td>
+        <td class="meh">Not considered — each city explored from scratch</td>
+      </tr>
+      <tr>
+        <td><strong>Time to build v1</strong></td>
+        <td>Medium — need config infra + compiler + data model</td>
+        <td class="winner">Fastest — light architecture, 2-3 weeks for 1 city</td>
+        <td class="meh">Slowest — exploration pipeline + synthesis + review tool</td>
+      </tr>
+      <tr>
+        <td><strong>Cost to scale to 1,000 cities</strong></td>
+        <td class="meh">Worst — 10,000-15,000 hours of manual config work</td>
+        <td>Good economics — front-loaded learning, diminishing new pages</td>
+        <td class="winner">Best — 85% auto-onboard. But exploration costs $50-100K.</td>
+      </tr>
+      <tr>
+        <td><strong>Auto address/parcel lookup</strong></td>
+        <td class="winner">Full pipeline — GIS, assessor DBs, commercial APIs</td>
+        <td class="meh">Not addressed at all</td>
+        <td>Mentioned but not designed</td>
+      </tr>
+      <tr>
+        <td><strong>Edge cases</strong><br><span style="font-size:.75rem;color:var(--muted);">CAPTCHA, logins, uploads, timeouts</span></td>
+        <td class="meh">Not addressed</td>
+        <td>Partially — logins mentioned</td>
+        <td class="winner">All covered — CAPTCHAs, sessions, uploads, timeouts</td>
+      </tr>
+      <tr>
+        <td><strong>Data privacy</strong></td>
+        <td class="winner">No AI at runtime — contractor data stays in our system</td>
+        <td class="meh">Sends raw HTML + contractor data to AI for mapping</td>
+        <td>AI only during exploration (no real contractor data). Clean.</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:20px;">
+    <div><span class="verdict verdict-best">Explorer (Opt 3) wins 9 of 15</span></div>
+    <div><span class="verdict verdict-good">Compiler (Opt 1) wins 3 of 15</span></div>
+    <div><span class="verdict verdict-good">Quick Mapper (Opt 2) wins 3 of 15</span></div>
+  </div>
+
+  <div class="callout">
+    <strong>The pattern is clear:</strong> Option 3 dominates on <em>website-side</em> concerns (learning, filling, verifying, handling changes). Option 1 dominates on <em>data-side</em> concerns (data model, address resolution, field classification, privacy). Option 2 dominates on <em>user-side</em> concerns (contractor experience, gap discovery, vendor reuse, speed to market). The ideal system takes the best from each.
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- ═══════════════════ 6. ASSUMPTIONS ═══════════════════ -->
+<div class="section">
+  <div class="section-header"><div class="section-num">6</div><h2>Key Assumptions We're Making</h2></div>
+  <div class="info-box">
+    <ul>
+      <li><strong>Government websites don't change often</strong> &mdash; redesigns happen every few months, not every day. Nightly checks are enough.</li>
+      <li><strong>Most cities use a few common platforms</strong> &mdash; Accela, Tyler Technologies, CityView, etc. If we crack one, we crack dozens that use the same software.</li>
+      <li><strong>Contractors already have accounts</strong> on their city portals. We fill forms with their login &mdash; we don't create accounts.</li>
+      <li><strong>The first 10-20 cities will be hard no matter what.</strong> The architecture should optimize for cities 20-1,000, not 1-10.</li>
+      <li><strong>Permit forms are predictable.</strong> Same inputs always produce the same form flow. There's conditional logic, but no randomness.</li>
+      <li><strong>We start simple.</strong> Reroof, water heater, HVAC first. New construction and additions come later.</li>
+      <li><strong>AI is reliable for one-time analysis</strong> (studying a form), but not reliable enough for per-permit decisions (filling a form every time).</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ═══════════════════ 7. FINAL RECOMMENDATION ═══════════════════ -->
+<div class="section">
+  <div class="section-header"><div class="section-num">7</div><h2>Final Recommendation</h2></div>
+
+  <div class="rec-box">
+    <h3>Use Option 3 as the backbone. Patch it with the best ideas from Options 1 and 2.</h3>
+    <p>The deep dives revealed a clear pattern: each approach dominates in one dimension, and all three are needed. None is complete alone.</p>
+
+    <div style="background:rgba(34,211,238,.08);border-radius:10px;padding:18px;margin:16px 0 24px;">
+      <h4 style="color:var(--accent2);margin-bottom:10px;">The Three Dimensions of the Problem</h4>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;">
+        <div>
+          <p style="font-size:.82rem;margin-bottom:4px;"><strong style="color:var(--accent2);">Website-Side</strong> (how we learn, fill, verify, maintain)</p>
+          <p style="font-size:.8rem;color:var(--green);">Option 3 wins: 9 of 15 categories</p>
+        </div>
+        <div>
+          <p style="font-size:.82rem;margin-bottom:4px;"><strong style="color:var(--accent1);">Data-Side</strong> (how we structure, classify, resolve permit data)</p>
+          <p style="font-size:.8rem;color:var(--green);">Option 1 wins: 3 of 15 categories</p>
+        </div>
+        <div>
+          <p style="font-size:.82rem;margin-bottom:4px;"><strong style="color:var(--accent3);">User-Side</strong> (contractor experience, gap discovery, speed)</p>
+          <p style="font-size:.8rem;color:var(--green);">Option 2 wins: 3 of 15 categories</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="pick-grid">
+      <div class="pick-card" style="background:rgba(99,102,241,.08);">
+        <h4 style="color:var(--accent1);">Take from Option 1 (the brain)</h4>
+        <ul>
+          <li><strong>3-layer data model</strong> &mdash; universal → trade-specific → city-specific. Reuses 70-80% of fields across cities.</li>
+          <li><strong>Field intent classification</strong> &mdash; auto-fillable, safe default, derivable, risky, obsolete. Prevents entire categories of fill errors.</li>
+          <li><strong>Address auto-resolution pipeline</strong> &mdash; GIS + assessor DBs → parcel, zoning, jurisdiction. Eliminates #1 cause of rejections.</li>
+          <li><strong>Graceful unknown handling</strong> &mdash; classify new fields on-the-fly instead of crashing.</li>
+          <li><strong>Data privacy</strong> &mdash; no contractor data sent to AI at runtime.</li>
+        </ul>
+      </div>
+      <div class="pick-card" style="background:rgba(245,158,11,.08);">
+        <h4 style="color:var(--accent3);">Take from Option 2 (the UX)</h4>
+        <ul>
+          <li><strong>Async background filling</strong> &mdash; contractor's session is 2 min. Bot fills carefully for 10-15 min. Text when done.</li>
+          <li><strong>Real-time gap check (the "scout")</strong> &mdash; before the contractor leaves, cross-reference the master map's required fields against collected data. Ask gaps immediately. Only approach that prevents "missing data" callbacks.</li>
+          <li><strong>Vendor platform clustering</strong> &mdash; tag each city's software vendor. If City A uses Accela, clone its map for City B (also Accela) and check differences. Don't re-explore from scratch. Saves 80% of exploration work.</li>
+          <li><strong>Growing field heuristic library</strong> &mdash; "sq_ft" / "sqft" / "area" are learned over time. Reduces AI dependency as we scale.</li>
+        </ul>
+      </div>
+      <div class="pick-card" style="background:rgba(34,211,238,.08);">
+        <h4 style="color:var(--accent2);">Take from Option 3 (the engine)</h4>
+        <ul>
+          <li><strong>Multi-run AI exploration</strong> &mdash; 10+ sessions with varied inputs to discover every branch, popup, nested form.</li>
+          <li><strong>Rich master map</strong> &mdash; pages, fields, selectors + fallbacks, branching conditions, nested form triggers, explicit waits.</li>
+          <li><strong>Zero-AI form filling</strong> &mdash; Playwright bot follows the map. No guessing, no hallucination, no per-permit AI cost.</li>
+          <li><strong>Per-page verification + screenshots</strong> &mdash; read-back every field after each page, not just the final summary.</li>
+          <li><strong>3-layer change detection + auto-heal</strong> &mdash; every fill checks structure, nightly sample regression, failure rate alerts. Auto re-explore and rebuild.</li>
+          <li><strong>Visual review tool</strong> &mdash; flowchart UI for ops team to review maps in 15 min.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="callout"><strong>The one rule that matters:</strong> AI learns the website once. Code fills forms every time. The saved map is the product &mdash; not the AI.</div>
+
+    <!-- RECOMMENDED FLOW -->
+    <h3 style="color:var(--green);margin:28px 0 16px;">Recommended Flow &mdash; How It All Fits Together</h3>
+
+    <div class="flow-diagram" style="margin-bottom:0;">
+
+      <p style="color:var(--accent1);font-size:.82rem;margin-bottom:12px;font-weight:600;">SETUP &mdash; Done once per city (before any real permits)</p>
+
+      <div class="flow-step step-learn">
+        <div class="flow-actor">AI Explorer<br><span style="font-size:.6rem;color:var(--accent2);">from Opt 3</span></div>
+        <div class="flow-box">
+          <h4>A. Learn the Website</h4>
+          <p>AI bot explores the city's permit site 10+ times with varied inputs. If the city uses a known vendor platform (Accela, Tyler), start from an existing map template and only check differences — saving 80% of exploration. Records every page, field, popup, and branch.</p>
+        </div>
+        <div class="flow-io">
+          <div><span class="io-label io-in">In:</span> URL + vendor tag (or existing template)</div>
+          <div><span class="io-label io-out">Out:</span> Draft master map (JSON)</div>
+        </div>
+      </div>
+      <div class="flow-connector"><div class="arrow-line"></div></div>
+
+      <div class="flow-step step-user">
+        <div class="flow-actor">Ops Person<br>(15 min)<br><span style="font-size:.6rem;color:var(--accent2);">from Opt 3</span></div>
+        <div class="flow-box">
+          <h4>B. Human Reviews & Classifies</h4>
+          <p>Ops person views the map as a visual flowchart (from Opt 3). Checks field mappings and flow logic. Then adds field intent tags from Opt 1: auto-fillable, safe default, derivable, risky, obsolete. Approves the map.</p>
+        </div>
+        <div class="flow-io">
+          <div><span class="io-label io-in">In:</span> Draft map + review tool + field classification rules</div>
+          <div><span class="io-label io-out">Out:</span> Approved, classified master map</div>
+        </div>
+      </div>
+
+      <p style="color:var(--green);font-size:.82rem;margin:24px 0 12px;font-weight:600;">EVERY PERMIT &mdash; What happens when a contractor files</p>
+
+      <div class="flow-step step-user">
+        <div class="flow-actor">Contractor<br>(2-3 min)<br><span style="font-size:.6rem;color:var(--accent1);">data from Opt 1</span></div>
+        <div class="flow-box">
+          <h4>C. Collect Data (Layered Questions)</h4>
+          <p>Chat agent uses Opt 1's 3-layer model: Layer A (always: what work, where, who) → Layer B (trade-specific: triggered by work type) → Layer C (city-specific: only if the master map flags it). System auto-resolves address → parcel, zoning, jurisdiction via GIS + assessor databases.</p>
+        </div>
+        <div class="flow-io">
+          <div><span class="io-label io-in">In:</span> Contractor's project knowledge</div>
+          <div><span class="io-label io-out">Out:</span> Structured permit data (3 layers)</div>
+        </div>
+      </div>
+      <div class="flow-connector"><div class="arrow-line"></div></div>
+
+      <div class="flow-step step-user">
+        <div class="flow-actor">System<br>(instant)<br><span style="font-size:.6rem;color:var(--accent3);">from Opt 2</span></div>
+        <div class="flow-box">
+          <h4>D. Gap Check (before contractor leaves)</h4>
+          <p>Cross-reference the master map's required fields against collected data. If the form needs something we didn't ask (a rare city-specific field), ask the contractor immediately — while they're still in the chat. This is Opt 2's "scout" idea, but using the pre-built master map instead of a real-time website scan.</p>
+        </div>
+        <div class="flow-io">
+          <div><span class="io-label io-in">In:</span> Collected data + master map required fields</div>
+          <div><span class="io-label io-out">Out:</span> Complete data set, all gaps filled</div>
+        </div>
+      </div>
+      <div class="flow-connector"><div class="arrow-line"></div></div>
+
+      <div class="flow-step step-run">
+        <div class="flow-actor">Bot (async,<br>no AI)<br><span style="font-size:.6rem;color:var(--accent2);">from Opt 3</span></div>
+        <div class="flow-box">
+          <h4>E. Fill the Form (background)</h4>
+          <p>Contractor is done. Bot follows the master map page by page. Fills each field using the primary selector (fallback to backup if needed). Handles popups and nested sections recursively. Applies format transforms (uppercase, currency, date). Zero AI — just following the map.</p>
+        </div>
+        <div class="flow-io">
+          <div><span class="io-label io-in">In:</span> Complete permit data + approved map</div>
+          <div><span class="io-label io-out">Out:</span> Filled form (per page)</div>
+        </div>
+      </div>
+      <div class="flow-connector"><div class="arrow-line"></div></div>
+
+      <div class="flow-step step-check">
+        <div class="flow-actor">Verifier<br>(auto)<br><span style="font-size:.6rem;color:var(--accent2);">from Opt 3</span></div>
+        <div class="flow-box">
+          <h4>F. Per-Page Verification + Submit</h4>
+          <p>After each page: read back all field values → compare to expected → take screenshot. Mismatch → clear and re-fill → verify again. Two failures → flag human. All pages pass → submit. Contractor gets a text.</p>
+        </div>
+        <div class="flow-io">
+          <div><span class="io-label io-in">In:</span> Filled page + expected values</div>
+          <div><span class="io-label io-out">Out:</span> Submitted permit or escalation</div>
+        </div>
+      </div>
+
+      <p style="color:var(--red);font-size:.82rem;margin:24px 0 12px;font-weight:600;">ONGOING &mdash; Keeping maps accurate over time</p>
+
+      <div class="flow-step step-fix">
+        <div class="flow-actor">System<br>(auto, nightly)<br><span style="font-size:.6rem;color:var(--accent2);">from Opt 3</span></div>
+        <div class="flow-box">
+          <h4>G. Detect & Fix Website Changes</h4>
+          <p>Every real fill checks the page structure fingerprint against the map. Nightly: test a rotating 20% of cities. If drift detected: auto re-explore → AI synthesizes updated map → test fill to validate → if pass, swap map → if fail, pause city and alert ops. SLA: most changes auto-recovered within 2 hours.</p>
+        </div>
+        <div class="flow-io">
+          <div><span class="io-label io-in">In:</span> Stored map fingerprints + nightly schedule</div>
+          <div><span class="io-label io-out">Out:</span> Updated maps or ops alerts</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Key decisions -->
+    <div style="margin-top:36px;">
+      <h3 style="color:var(--accent2);margin-bottom:14px;">Key Decisions in This Approach</h3>
+      <ul>
+        <li><strong>AI is used once per city, zero times per permit.</strong> Learning is AI-heavy. Filling is AI-free. Verification uses a lightweight image check as a safety net only.</li>
+        <li><strong>The map is the product.</strong> If the map is right, the fill is right. All quality effort goes into making maps accurate and keeping them updated.</li>
+        <li><strong>Vendor clustering saves 80% of exploration.</strong> Tag each city's software platform. Clone maps across same-vendor cities. Only re-explore the differences. This cuts the 50,000-session scaling problem down to ~10,000.</li>
+        <li><strong>Gap check uses the map, not the live site.</strong> Instead of Opt 2's real-time "scout" (which is slow on government sites), cross-reference the pre-built map's required fields against collected data. Same result, zero latency.</li>
+        <li><strong>Field classification prevents errors, not just catches them.</strong> Knowing a field is "legacy" (auto N/A) or "derivable" (auto-lookup) before filling avoids the error entirely. Verification is the last line, not the only line.</li>
+        <li><strong>Check a sample, not everything.</strong> Test 20% of cities per night (rotating). Every real fill also checks. This is 5x cheaper than checking all cities nightly, with minimal risk increase.</li>
+        <li><strong>Start narrow, prove reliability, then scale.</strong> 5 permit types across 10 cities. Hit 95%+ success rate before expanding.</li>
+      </ul>
+    </div>
+
+    <!-- Build order -->
+    <div style="margin-top:32px;">
+      <h3 style="color:var(--accent2);margin-bottom:14px;">Build Order</h3>
+      <table style="font-size:.85rem;">
+        <thead>
+          <tr><th>Weeks</th><th>What gets built</th><th>Comes from</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>1-4</td><td>3-layer data model + field intent classification + address auto-resolution pipeline</td><td><span class="tag tag-opt1">Opt 1</span></td></tr>
+          <tr><td>5-8</td><td>AI explorer + recording pipeline + map synthesis for 1 city</td><td><span class="tag tag-opt3">Opt 3</span></td></tr>
+          <tr><td>9-12</td><td>Playwright bot that follows the map (page-by-page fill, selector fallbacks, nested form handling)</td><td><span class="tag tag-opt3">Opt 3</span></td></tr>
+          <tr><td>13-16</td><td>Per-page verification + screenshot evidence + retry/escalation logic</td><td><span class="tag tag-opt3">Opt 3</span> <span class="tag tag-opt1">Opt 1</span></td></tr>
+          <tr><td>17-20</td><td>Contractor chat agent + gap-check (map-based, not live) + async background filling + SMS notification</td><td><span class="tag tag-opt2">Opt 2</span> <span class="tag tag-opt1">Opt 1</span></td></tr>
+          <tr><td>21-24</td><td>Visual map review tool + ops dashboard + vendor platform tagging. Go live with 10 cities.</td><td><span class="tag tag-opt3">Opt 3</span> <span class="tag tag-opt2">Opt 2</span></td></tr>
+          <tr><td>25-28</td><td>Vendor clustering (clone maps across same-platform cities) + change detection + nightly regression + auto-heal</td><td><span class="tag tag-opt2">Opt 2</span> <span class="tag tag-opt3">Opt 3</span></td></tr>
+          <tr><td>29-32</td><td>Growing field heuristic library (reduce AI dependency) + explore → onboard pipeline for batch city adds</td><td><span class="tag tag-opt2">Opt 2</span></td></tr>
+          <tr><td>33+</td><td>Scale to 100+ cities. Target: 85% auto-onboard, &lt;2hr change recovery, &lt;5% human intervention rate.</td><td><span class="tag tag-rec">All</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- ═══════════════════ 8. BOTTOM LINE ═══════════════════ -->
+<div class="section">
+  <div class="section-header"><div class="section-num">8</div><h2>Bottom Line</h2></div>
+  <div class="info-box">
+    <p style="margin-bottom:12px;font-size:1.02rem;"><strong>This problem has three dimensions. Each team nailed one.</strong></p>
+    <p style="margin-bottom:12px;">Option 3 (Explorer) built the best <strong>website engine</strong> — it's the only approach that handles complex forms, detects website changes, and auto-recovers. It wins 9 of 15 comparison categories. But it has a weak data model and no real-time gap check.</p>
+    <p style="margin-bottom:12px;">Option 1 (Compiler) built the best <strong>data architecture</strong> — the 3-layer schema, field classification, and address resolution pipeline are essential for accuracy and scale. But it has no automation for city onboarding and no change detection.</p>
+    <p style="margin-bottom:12px;">Option 2 (Quick Mapper) built the best <strong>contractor experience</strong> — async filling, real-time gap discovery, and vendor platform reuse are genuine innovations. But its fingerprinting is fragile and it can't handle complex forms.</p>
+    <p style="margin-bottom:16px;">The recommended hybrid takes the <strong>engine</strong> from Option 3, the <strong>brain</strong> from Option 1, and the <strong>user experience</strong> from Option 2. None of the three is throwaway — every approach contributed something the others missed.</p>
+    <div class="callout" style="margin-top:0;margin-bottom:0;">
+      <strong>The single most important principle:</strong> Use AI to learn a website once. Save that knowledge as a reusable map. Then use simple code to follow the map every single time. The map is the product. Not the AI.
+    </div>
+  </div>
+</div>
+
+</div><!-- /container -->
+</body>
+</html>
